@@ -1,5 +1,6 @@
 import { compileScene, type Scene } from './scene.ts';
 import { queue } from './queue-scene.ts';
+import { intro } from './intro-scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
@@ -36,4 +37,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(precinct), compileScene(queue)];
+export const scenes = [compileScene(intro), compileScene(precinct), compileScene(queue)];

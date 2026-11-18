@@ -13,6 +13,7 @@ export interface Cue {
   camera: { scale: number; x: number; y: number };
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
+  titleCard?: { eyebrow: string; title: string };
 }
 export interface Scene {
   id: string;
@@ -38,6 +39,7 @@ export function compileScene(scene: Scene): CompiledScene {
   const cues = scene.cues.map((cue) => {
     if (!cue.id || ids.has(cue.id)) throw new Error('Повторяющийся или пустой ID кадра');
     ids.add(cue.id);
+    if (cue.titleCard && (!cue.titleCard.title.trim() || cue.fight)) throw new Error('Неверный титр');
     if (!Number.isFinite(cue.duration) || cue.duration <= 0) throw new Error('Неверная длительность кадра');
     const { scale, x, y } = cue.camera;
     if (![scale, x, y].every(Number.isFinite) || scale < 1 || scale > 5 || x < 0 || x > 100 || y < 0 || y > 100) {

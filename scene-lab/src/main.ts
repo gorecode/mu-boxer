@@ -45,6 +45,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <button class="primary" id="resolve">Разобраться</button>
             <p id="fight-note" hidden>Дальше — бой. В этом стенде проверяем только сюжетную сцену.</p>
           </div>
+          <div class="title-card" id="title-card" hidden>
+            <span class="eyebrow" id="title-card-eyebrow"></span>
+            <p id="title-card-title"></p>
+          </div>
         </div>
         <div class="transport">
           <label class="sr-only" for="scrub">Позиция сцены</label>
@@ -155,6 +159,8 @@ function render(): void {
     element('speaker').textContent = cue.speaker;
     element('caption-layout').textContent = cue.text;
     element('caption').setAttribute('aria-label', cue.text);
+    element('title-card-eyebrow').textContent = cue.titleCard?.eyebrow ?? '';
+    element('title-card-title').textContent = cue.titleCard?.title ?? '';
     element('frame-counter').textContent = `КАДР ${String(index + 1).padStart(2, '0')} / ${scene.cues.length}`;
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-cue]')) {
       if (button.dataset.cue === cue.id) button.setAttribute('aria-current', 'step');
@@ -165,8 +171,9 @@ function render(): void {
   syncSpeech();
   element('subtitle').hidden = !started || !cue.text;
   element('fight').hidden = !started || !cue.fight;
+  element('title-card').hidden = !started || !cue.titleCard;
   element('start-overlay').hidden = started;
-  element('paused-mark').hidden = !started || timeline.playing || !!cue.fight;
+  element('paused-mark').hidden = !started || timeline.playing || !!cue.fight || !!cue.titleCard;
   playButton.textContent = timeline.playing ? 'Ⅱ' : '▶';
   playButton.setAttribute('aria-label', timeline.playing ? 'Пауза' : 'Воспроизвести');
   element<HTMLButtonElement>('previous').disabled = timeline.time === 0;
