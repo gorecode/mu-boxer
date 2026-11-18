@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { compileScene, cueAt, readSceneLink, sceneLink, sceneImages, type Scene } from '../src/scene.ts';
 import { Timeline } from '../src/timeline.ts';
 import { noiseSamples } from '../src/audio.ts';
+import { voiceCurves } from '../src/speech.ts';
 import { scenes } from '../src/scenes.ts';
 
 const draft: Scene = {
@@ -103,7 +104,7 @@ test('district-officer scene retains the visual clue before recognition and ends
   const precinct = scenes[0];
   assert.equal(precinct.duration, 24000);
   assert.equal(precinct.cues.length, 9);
-  assert.equal(precinct.cues.filter((cue) => cue.text).length, 5);
+  assert.equal(precinct.cues.filter((cue) => cue.text).length, 6);
   assert.equal(sceneImages(precinct).length, 4);
   const clue = precinct.cues.find((cue) => cue.id === 'clue')!;
   const shoes = precinct.cues.find((cue) => cue.id === 'shoes')!;
@@ -116,8 +117,11 @@ test('district-officer scene retains the visual clue before recognition and ends
   assert.equal(shoes.end, recognition.start);
   assert.equal(recognition.end, thinking.start);
   assert.equal(thinking.duration, 1000);
-  assert.equal(thinking.text, '');
-  assert.equal(thinking.speech.syllables.length, 0);
+  assert.equal(thinking.text, 'Сесть?!?');
+  assert.equal(thinking.voice, 'boxer');
+  assert.equal(thinking.speech.syllables.length, 1);
+  assert.ok(thinking.duration - thinking.speech.syllables.at(-1)!.end >= 600);
+  assert.ok(voiceCurves(thinking.speech, 400, 1).gain.every((gain) => gain === 0));
   assert.deepEqual(thinking.sounds ?? [], []);
   assert.equal(thinking.end, refusal.start);
   assert.ok(thinking.image?.endsWith('boxer-thinking.webp'));
@@ -125,11 +129,12 @@ test('district-officer scene retains the visual clue before recognition and ends
   assert.deepEqual(thinking.camera, refusal.camera);
   assert.equal(cueAt(precinct, thinking.end - 1).id, 'thinking');
   assert.equal(cueAt(precinct, thinking.end).id, 'refusal');
-  assert.equal(refusal.text, 'Сесть ещё раз я не собирался.');
+  assert.equal(refusal.text, 'Ещё раз я не собираюсь!');
+  assert.equal(refusal.voice, 'boxer-angry');
+  assert.equal(precinct.opponent, 'Участкового');
   assert.deepEqual(precinct.events.filter((event) => event.time >= thinking.start && event.time < thinking.end), []);
   assert.ok(precinct.events.some((event) => event.time === refusal.start && event.sound === 'impact'));
   assert.equal(precinct.cues.at(-1)?.fight, true);
-  assert.ok(precinct.cues.some((cue) => cue.text === 'Сесть ещё раз я не собирался.'));
   assert.equal(precinct.events.filter((event) => event.sound === 'ring').length, 1);
 });
 

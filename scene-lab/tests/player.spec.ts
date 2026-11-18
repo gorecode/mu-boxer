@@ -66,6 +66,7 @@ test('cue review, speed, mute, seek to ending, replay, and share link work', asy
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
   await page.getByLabel('Позиция сцены').press('End');
   await expect(page.locator('#fight')).toBeVisible();
+  await expect(page.locator('#opponent')).toHaveText('УЧАСТКОВОГО');
   await expect(page.getByRole('button', { name: 'Следующий кадр' })).toBeDisabled();
   await page.getByRole('button', { name: 'Разобраться', exact: true }).click();
   await expect(page.locator('#fight-note')).toBeVisible();
@@ -166,7 +167,7 @@ test('mid-phrase seek shows only elapsed text and playback continues at selected
 });
 
 
-test('officer names concrete legs; silent thinking cuts to the angry face and full final line', async ({ page }) => {
+test('officer names concrete legs; split reaction pauses before the angry face', async ({ page }) => {
   await page.goto('./#scene=precinct&t=10');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await expect(page.locator('#caption-typed')).toHaveText('Ноги в бетоне?');
@@ -174,16 +175,17 @@ test('officer names concrete legs; silent thinking cuts to the angry face and fu
   await expect(page.locator('#subtitle')).toBeHidden();
   await page.locator('[data-cue=thinking]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-thinking.webp$/);
-  await expect(page.locator('#subtitle')).toBeHidden();
+  await expect(page.locator('#subtitle')).toBeVisible();
   await expect(page.locator('#caption-typed')).toHaveText('');
   const camera = await page.locator('#art').evaluate((image) => ({
     transform: image.style.transform, origin: image.style.transformOrigin, opacity: getComputedStyle(image).opacity,
   }));
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('[data-cue=thinking]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#caption-typed')).toHaveText('Сесть?!?');
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-thinking.webp$/);
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
   expect(await page.locator('#art').evaluate((image) => ({
     transform: image.style.transform, origin: image.style.transformOrigin, opacity: getComputedStyle(image).opacity,
   }))).toEqual(camera);
-  await expect(page.locator('#caption-typed')).toHaveText('Сесть ещё раз я не собирался.');
+  await expect(page.locator('#caption-typed')).toHaveText('Ещё раз я не собираюсь!');
 });
