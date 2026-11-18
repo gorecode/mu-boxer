@@ -14,6 +14,7 @@ export interface Cue {
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
   titleCard?: { eyebrow: string; title: string };
+  setting?: string;
 }
 export interface Scene {
   id: string;
@@ -23,6 +24,7 @@ export interface Scene {
   imageAlt: string;
   opponent: string;
   intro?: { location: string; title: string };
+  hardCuts?: boolean;
   cues: Cue[];
 }
 export interface TimedCue extends Cue { start: number; end: number; speech: SpeechPlan }
