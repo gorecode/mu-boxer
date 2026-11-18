@@ -31,6 +31,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <img id="art" alt="" draggable="false" />
           <div class="stage-shade"></div>
           <span class="frame-counter" id="frame-counter"></span>
+          <span class="scene-setting" id="scene-setting" hidden></span>
           <span class="paused-mark" id="paused-mark" hidden>ПАУЗА</span>
           <div class="subtitle" id="subtitle"><span id="speaker"></span><p id="caption"><span id="caption-layout" aria-hidden="true"></span><span id="caption-typed" aria-hidden="true"></span></p></div>
           <div class="start-overlay" id="start-overlay">
@@ -97,6 +98,7 @@ function formatTime(milliseconds: number): string {
 
 function populate(): void {
   const scene = timeline.scene;
+  element('stage').classList.toggle('hard-cuts', !!scene.hardCuts);
   if (status.textContent?.startsWith('Не удалось загрузить иллюстрацию.')) {
     status.textContent = 'Серьёзный разговор. Нелепые обстоятельства.';
   }
@@ -161,6 +163,7 @@ function render(): void {
     element('caption').setAttribute('aria-label', cue.text);
     element('title-card-eyebrow').textContent = cue.titleCard?.eyebrow ?? '';
     element('title-card-title').textContent = cue.titleCard?.title ?? '';
+    element('scene-setting').textContent = cue.setting ?? '';
     element('frame-counter').textContent = `КАДР ${String(index + 1).padStart(2, '0')} / ${scene.cues.length}`;
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-cue]')) {
       if (button.dataset.cue === cue.id) button.setAttribute('aria-current', 'step');
@@ -172,6 +175,7 @@ function render(): void {
   element('subtitle').hidden = !started || !cue.text;
   element('fight').hidden = !started || !cue.fight;
   element('title-card').hidden = !started || !cue.titleCard;
+  element('scene-setting').hidden = !started || !cue.setting || !!cue.titleCard;
   element('start-overlay').hidden = started;
   element('paused-mark').hidden = !started || timeline.playing || !!cue.fight || !!cue.titleCard;
   playButton.textContent = timeline.playing ? 'Ⅱ' : '▶';

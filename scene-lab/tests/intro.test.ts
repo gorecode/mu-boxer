@@ -6,17 +6,17 @@ import { Timeline } from '../src/timeline.ts';
 
 const intro = scenes.find((scene) => scene.id === 'intro')!;
 
-test('the default introduction recaps the original and preserves existing scene links', () => {
+test('the serial recap opens by default and preserves all scene links', () => {
   assert.equal(scenes.length, 3);
   assert.equal(scenes[0], intro);
-  assert.equal(intro.duration, 42600);
-  assert.equal(intro.cues.length, 15);
-  assert.equal(sceneImages(intro).length, 7);
+  assert.equal(intro.duration, 41100);
+  assert.equal(intro.cues.length, 19);
+  assert.equal(sceneImages(intro).length, 10);
   assert.deepEqual(readSceneLink('', scenes), { scene: intro, time: 0 });
   assert.deepEqual(readSceneLink('#scene=unknown&t=30', scenes), { scene: intro, time: 0 });
   assert.deepEqual(readSceneLink('#scene=intro&t=NaN', scenes), { scene: intro, time: 0 });
-  assert.deepEqual(readSceneLink(sceneLink(intro, 37800), scenes), { scene: intro, time: 37800 });
-  assert.equal(readSceneLink('#scene=intro&t=999', scenes).time, 42600);
+  assert.deepEqual(readSceneLink(sceneLink(intro, 29000), scenes), { scene: intro, time: 29000 });
+  assert.equal(readSceneLink('#scene=intro&t=999', scenes).time, 41100);
   for (const [id, duration] of [['precinct', 24000], ['queue', 27000]] as const) {
     const linked = readSceneLink(`#scene=${id}&t=2`, scenes);
     assert.equal(linked.scene.id, id);
@@ -25,56 +25,77 @@ test('the default introduction recaps the original and preserves existing scene 
   }
 });
 
-test('canonical events lead from murder to acquittal, then the certificate contradiction', () => {
-  const spoken = intro.cues.filter((cue) => cue.text);
-  assert.deepEqual(spoken.map((cue) => cue.text), [
-    'У меня убили лучшего друга.',
-    'Пистолет нашли у меня в кармане.',
-    'Как он туда попал, я не знал.',
-    'Меня посадили.',
-    'Пришлось выбираться самому.',
-    'По дороге один тип потребовал билет.',
-    'Я был вынужден разобраться.',
-    'Убийцу я нашёл в бильярдной.',
-    'После этого суд признал меня невиновным.',
-    'Я снова занялся боксом.',
-    'Для турнира потребовали справку.',
-    'Об отсутствии судимости.',
-    'Турнир был завтра.',
+test('dialogue establishes the accusation and goal, then shows escape, culprit and acquittal in order', () => {
+  assert.deepEqual(intro.cues.map((cue) => cue.id), [
+    'previously', 'murder', 'denial', 'accusation', 'prison', 'escape',
+    'ticket', 'forced', 'controller-after', 'murderer', 'murderer-after', 'acquittal',
+    'now', 'certificate', 'protest', 'procedure', 'reaction', 'tomorrow', 'title',
   ]);
+  assert.deepEqual(intro.cues.slice(1, 5).map((cue) => [cue.speaker, cue.text]), [
+    ['Милиционер', 'Твоего друга убили из этого пистолета.'],
+    ['Боксёр', 'Я его раньше не видел.'],
+    ['Милиционер', 'А нашли в твоём кармане.'],
+    ['Боксёр', 'Я найду настоящего убийцу.'],
+  ]);
+  assert.match(cueAt(intro, 11600).image!, /intro-cell-v2.webp$/);
+  assert.match(cueAt(intro, 14800).image!, /intro-escape-v2.webp$/);
+  const verdict = cueAt(intro, 24900);
+  assert.equal(verdict.speaker, 'Судья');
+  assert.equal(verdict.text, 'Вы признаны невиновным.');
+  assert.match(verdict.image!, /intro-court-v2.webp$/);
+  assert.notEqual(verdict.image, cueAt(intro, 29000).image);
+  const spoken = intro.cues.filter((cue) => cue.text);
+  assert.equal(spoken.length, 12);
+  assert.ok(spoken.every((cue) => !cue.speaker.includes('рассказ')));
   for (const cue of spoken) {
-    assert.equal(cue.voice, 'boxer');
+    assert.equal(cue.voice, cue.speaker.startsWith('Боксёр') ? 'boxer' : 'officer');
     assert.ok(cue.speech.duration > 0 && cue.speech.duration <= cue.duration);
   }
-  const imageAt = (time: number): string => cueAt(intro, time).image ?? intro.image;
-  assert.match(imageAt(0), /intro-arrest.webp$/);
-  assert.match(imageAt(11800), /intro-prison.webp$/);
-  assert.match(imageAt(18500), /intro-controller.webp$/);
-  assert.match(imageAt(21500), /intro-billiards.webp$/);
-  assert.match(imageAt(29200), /intro-gym.webp$/);
-  assert.match(imageAt(35000), /intro-registration.webp$/);
 });
 
-test('a silent reaction separates the certificate from urgency; title ends without combat', () => {
-  const reaction = cueAt(intro, 37800);
-  assert.equal(cueAt(intro, 37799).id, 'record');
+test('mundane ticket demand cuts to the forced excuse and a separate silent aftermath', () => {
+  const ticket = cueAt(intro, 15900);
+  const forced = cueAt(intro, 17500);
+  const aftermath = cueAt(intro, 20500);
+  assert.equal(ticket.text, 'Ваш билет.');
+  assert.equal(ticket.speaker, 'Контролёр');
+  assert.equal(forced.text, 'Я был вынужден разобраться.');
+  assert.equal(forced.image, ticket.image);
+  assert.ok(forced.camera.x < ticket.camera.x);
+  assert.match(aftermath.image!, /intro-controller-after-v2.webp$/);
+  assert.equal(aftermath.text, '');
+  assert.equal(aftermath.speech.duration, 0);
+  assert.deepEqual(aftermath.sounds, [{ at: 0, sound: 'impact' }]);
+  assert.ok(aftermath.duration <= 1100);
+});
+
+test('time and place separate past events from the present-day certificate dialogue', () => {
+  const divider = cueAt(intro, 27900);
+  assert.equal(intro.cues[0].titleCard?.title, 'РАНЕЕ В «МЕСТИ БОКСЁРА»');
+  assert.deepEqual(divider.titleCard, { eyebrow: 'После оправдания', title: 'СЕЙЧАС' });
+  for (const cue of intro.cues.filter((cue) => !cue.titleCard)) {
+    assert.ok(cue.setting?.startsWith(cue.start < divider.start ? 'РАНЕЕ · ' : 'СЕЙЧАС · '));
+  }
+  assert.deepEqual(intro.cues.filter((cue) => cue.start >= divider.end && cue.text).map((cue) => [cue.speaker, cue.text]), [
+    ['Тренер', 'Справка об отсутствии судимости.'],
+    ['Боксёр', 'Меня же оправдали.'],
+    ['Тренер', 'А справка есть?'],
+    ['Тренер', 'Турнир завтра.'],
+  ]);
+  const reaction = cueAt(intro, 36300);
   assert.equal(reaction.id, 'reaction');
-  assert.equal(reaction.duration, 800);
+  assert.equal(reaction.duration, 700);
   assert.equal(reaction.text, '');
-  assert.equal(reaction.speech.syllables.length, 0);
   assert.deepEqual(reaction.sounds ?? [], []);
-  assert.match(reaction.image!, /boxer-thinking.webp$/);
-  assert.equal(cueAt(intro, 38600).id, 'tomorrow');
-  assert.equal(cueAt(intro, 40599).id, 'tomorrow');
-  assert.deepEqual(cueAt(intro, 40600).titleCard, { eyebrow: 'Турнир завтра.', title: 'МЕСТЬ БОКСЁРА II' });
+  assert.equal(cueAt(intro, 36299).id, 'procedure');
+  assert.equal(cueAt(intro, 37000).id, 'tomorrow');
+  assert.equal(cueAt(intro, 38899).id, 'tomorrow');
+  assert.equal(cueAt(intro, 38900).titleCard?.title, 'МЕСТЬ БОКСЁРА II');
   assert.ok(intro.cues.every((cue) => !cue.fight));
   const player = new Timeline(intro);
-  player.seek(40600);
+  player.seek(38900); player.play(); player.advance(2201);
+  assert.equal(player.time, 41100);
   assert.equal(player.playing, false);
-  player.play(); player.advance(2001);
-  assert.equal(player.time, 42600);
-  assert.equal(player.playing, false);
-  assert.equal(cueAt(intro, player.time).id, 'title');
   player.play();
   assert.equal(player.time, 0);
 });
