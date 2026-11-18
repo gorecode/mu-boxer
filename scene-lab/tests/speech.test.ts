@@ -59,3 +59,18 @@ test('empty and punctuation-only captions do not create speech', () => {
     assert.ok(voiceCurves(plan, 0, 1).gain.every((value) => value === 0));
   }
 });
+
+test('grandmother has a distinct voice while preserving shared dialogue and subtitle timing', () => {
+  const line = 'Мужчина. Только через мой труп.';
+  const grandma = planSpeech(line, 'grandma');
+  const narrator = planSpeech(line, 'boxer');
+  assert.equal(grandma.voice, 'grandma');
+  assert.equal(grandma.duration, narrator.duration);
+  assert.deepEqual(grandma.letters, narrator.letters);
+  assert.ok(grandma.syllables.length > 0);
+  assert.ok(grandma.syllables[0].pitch[0] > narrator.syllables[0].pitch[0]);
+  const curves = voiceCurves(grandma, 0, 1);
+  assert.ok(curves.gain.some((gain) => gain > 0));
+  assert.ok(curves.pitch.every(Number.isFinite));
+  assert.equal(subtitleAt(grandma, grandma.duration), line);
+});

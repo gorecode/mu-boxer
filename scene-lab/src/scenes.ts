@@ -1,4 +1,5 @@
 import { compileScene, type Scene } from './scene.ts';
+import { queue } from './queue-scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
@@ -7,6 +8,7 @@ const precinct: Scene = {
   image: art('precinct-idle'),
   imageAlt: 'Боксёр стоит перед участковым. Трубка лежит на телефоне. На ботинках и полу свежий бетон.',
   opponent: 'Участкового',
+  intro: { location: 'Москва. Кабинет участкового.', title: 'Мне только\nсправку получить.' },
   cues: [
     { id: 'request', label: 'За справкой', duration: 4000, speaker: 'Боксёр', voice: 'boxer', camera: wide,
       text: 'Мне справку, что я не судимый.' },
@@ -34,4 +36,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(precinct)];
+export const scenes = [compileScene(precinct), compileScene(queue)];

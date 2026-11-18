@@ -1,6 +1,6 @@
 import { planSpeech, type SpeechPlan, type Voice } from './speech.ts';
 
-export type Sound = 'ring' | 'receiver' | 'paper' | 'chair' | 'impact';
+export type Sound = 'ring' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime';
 export interface Cue {
   id: string;
   label: string;
@@ -21,6 +21,7 @@ export interface Scene {
   image: string;
   imageAlt: string;
   opponent: string;
+  intro?: { location: string; title: string };
   cues: Cue[];
 }
 export interface TimedCue extends Cue { start: number; end: number; speech: SpeechPlan }

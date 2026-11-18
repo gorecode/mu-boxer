@@ -34,10 +34,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <span class="paused-mark" id="paused-mark" hidden>ПАУЗА</span>
           <div class="subtitle" id="subtitle"><span id="speaker"></span><p id="caption"><span id="caption-layout" aria-hidden="true"></span><span id="caption-typed" aria-hidden="true"></span></p></div>
           <div class="start-overlay" id="start-overlay">
-            <span class="eyebrow">МОСКВА. КАБИНЕТ УЧАСТКОВОГО.</span>
-            <p class="start-title">Мне только<br>справку получить.</p>
+            <span class="eyebrow" id="story-location"></span>
+            <p class="start-title" id="story-intro"></p>
             <button class="primary" id="start" disabled>Загрузка иллюстрации…</button>
-            <span class="start-note">24 секунды · субтитры и му-озвучка</span>
+            <span class="start-note" id="story-duration"></span>
           </div>
           <div class="fight-overlay" id="fight" hidden>
             <span class="eyebrow">РАЗГОВОР НЕ СЛОЖИЛСЯ</span>
@@ -93,9 +93,15 @@ function formatTime(milliseconds: number): string {
 
 function populate(): void {
   const scene = timeline.scene;
+  if (status.textContent?.startsWith('Не удалось загрузить иллюстрацию.')) {
+    status.textContent = 'Серьёзный разговор. Нелепые обстоятельства.';
+  }
   element('chapter').textContent = scene.subtitle;
   element('title').textContent = scene.title;
   element('opponent').textContent = scene.opponent.toUpperCase();
+  element('story-location').textContent = scene.intro?.location ?? scene.subtitle;
+  element('story-intro').textContent = scene.intro?.title ?? scene.title;
+  element('story-duration').textContent = `Длительность: ${scene.duration / 1000} с · субтитры и му-озвучка`;
   element('cue-count').textContent = `${scene.cues.length} КАДРОВ`;
   scrub.max = String(scene.duration);
   const list = element('cues');
@@ -282,7 +288,9 @@ select.addEventListener('change', () => {
 window.addEventListener('hashchange', () => {
   const target = readSceneLink(location.hash, scenes);
   if (target.scene.id !== timeline.scene.id) {
-    pause(); timeline = new Timeline(target.scene); select.value = target.scene.id; populate();
+    pause(); timeline = new Timeline(target.scene);
+    timeline.setRate(Number(element<HTMLSelectElement>('speed').value));
+    select.value = target.scene.id; populate();
   }
   seek(target.time);
 });

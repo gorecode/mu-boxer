@@ -98,3 +98,5 @@ footer b { margin: 0 6px; color: #58483b; }
 #caption { position: relative; }
 #caption-layout { visibility: hidden; }
 #caption-typed { position: absolute; inset: 0; }
+
+#story-intro { white-space: pre-line; }

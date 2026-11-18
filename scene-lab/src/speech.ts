@@ -1,4 +1,4 @@
-export type Voice = 'boxer' | 'officer' | 'boxer-angry';
+export type Voice = 'boxer' | 'officer' | 'boxer-angry' | 'grandma';
 export interface Syllable {
   at: number;
   end: number;
@@ -15,6 +15,7 @@ export interface SpeechPlan {
 
 export const voices: Record<Voice, { pitch: number; roughness: number; formant: number; volume: number }> = {
   boxer: { pitch: 128, roughness: 0.08, formant: 740, volume: 0.12 },
+  grandma: { pitch: 178, roughness: 0.1, formant: 940, volume: 0.11 },
   officer: { pitch: 102, roughness: 0.03, formant: 670, volume: 0.11 },
   'boxer-angry': { pitch: 142, roughness: 0.25, formant: 780, volume: 0.14 },
 };
