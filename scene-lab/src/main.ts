@@ -24,7 +24,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </header>
   <main>
     <div class="scene-heading"><div><p class="eyebrow" id="chapter"></p><h1 id="title"></h1></div>
-      <span class="version">ПРОТОТИП / 02</span></div>
+      <span class="version">ПРОТОТИП / 03</span></div>
     <div class="workspace">
       <section class="screen-column" aria-label="Просмотр сцены">
         <div class="stage" id="stage" tabindex="0" aria-label="Кадр сцены. Пробел — пауза, стрелки — смена кадра">
@@ -37,7 +37,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <span class="eyebrow">МОСКВА. КАБИНЕТ УЧАСТКОВОГО.</span>
             <p class="start-title">Мне только<br>справку получить.</p>
             <button class="primary" id="start" disabled>Загрузка иллюстрации…</button>
-            <span class="start-note">22 секунды · субтитры и му-озвучка</span>
+            <span class="start-note">24 секунды · субтитры и му-озвучка</span>
           </div>
           <div class="fight-overlay" id="fight" hidden>
             <span class="eyebrow">РАЗГОВОР НЕ СЛОЖИЛСЯ</span>
