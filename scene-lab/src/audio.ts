@@ -1,4 +1,6 @@
 import type { Sound } from './scene.ts';
+import type { SpeechPlan } from './speech.ts';
+import { playMooSpeech } from './moo.ts';
 
 export function noiseSamples(length: number, seed = 42): Float32Array<ArrayBuffer> {
   const samples = new Float32Array(length);
@@ -19,6 +21,7 @@ export class SceneAudio {
   private level = 0.65;
   private generation = 0;
   private failed = false;
+  private stopSpeech?: () => void;
   readonly onError: () => void;
 
   constructor(onError: () => void) { this.onError = onError; }
@@ -61,8 +64,17 @@ export class SceneAudio {
   }
 
   stopNodes(): void {
+    this.stopSpeech?.();
+    this.stopSpeech = undefined;
     for (const node of this.nodes) { try { node.stop(); } catch { /* Already ended. */ } node.disconnect(); }
     this.nodes.clear();
+  }
+
+  speak(plan: SpeechPlan, offset: number, rate: number): void {
+    this.stopSpeech?.();
+    this.stopSpeech = undefined;
+    if (!this.active || this.muted || this.failed || this.context?.state !== 'running') return;
+    this.stopSpeech = playMooSpeech(this.context, this.master!, plan, offset, rate);
   }
 
   private track<T extends AudioScheduledSourceNode>(node: T): T {

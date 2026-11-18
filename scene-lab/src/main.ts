@@ -1,8 +1,9 @@
 import './style.css';
 import { scenes } from './scenes.ts';
-import { cueAt, readSceneLink, sceneLink } from './scene.ts';
+import { cueAt, readSceneLink, sceneLink, sceneImages } from './scene.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
+import { subtitleAt } from './speech.ts';
 
 const initial = readSceneLink(location.hash, scenes);
 let timeline = new Timeline(initial.scene);
@@ -13,6 +14,8 @@ let muted = false;
 let previous = performance.now();
 let lastCue = '';
 let audioGeneration = 0;
+let imageGeneration = 0;
+let speechKey = '';
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="masthead">
@@ -21,7 +24,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </header>
   <main>
     <div class="scene-heading"><div><p class="eyebrow" id="chapter"></p><h1 id="title"></h1></div>
-      <span class="version">ПРОТОТИП / 01</span></div>
+      <span class="version">ПРОТОТИП / 02</span></div>
     <div class="workspace">
       <section class="screen-column" aria-label="Просмотр сцены">
         <div class="stage" id="stage" tabindex="0" aria-label="Кадр сцены. Пробел — пауза, стрелки — смена кадра">
@@ -29,12 +32,12 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <div class="stage-shade"></div>
           <span class="frame-counter" id="frame-counter"></span>
           <span class="paused-mark" id="paused-mark" hidden>ПАУЗА</span>
-          <div class="subtitle" id="subtitle"><span id="speaker"></span><p id="caption"></p></div>
+          <div class="subtitle" id="subtitle"><span id="speaker"></span><p id="caption"><span id="caption-layout" aria-hidden="true"></span><span id="caption-typed" aria-hidden="true"></span></p></div>
           <div class="start-overlay" id="start-overlay">
             <span class="eyebrow">МОСКВА. КАБИНЕТ УЧАСТКОВОГО.</span>
             <p class="start-title">Мне только<br>справку получить.</p>
             <button class="primary" id="start" disabled>Загрузка иллюстрации…</button>
-            <span class="start-note">Около минуты · субтитры и звук</span>
+            <span class="start-note">22 секунды · субтитры и му-озвучка</span>
           </div>
           <div class="fight-overlay" id="fight" hidden>
             <span class="eyebrow">РАЗГОВОР НЕ СЛОЖИЛСЯ</span>
@@ -62,7 +65,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           </div>
         </div>
         <p class="status" id="status" role="status" aria-live="polite">Серьёзный разговор. Нелепые обстоятельства.</p>
-        <div class="under-screen"><span>СТАТИЧНЫЙ КОМИКС · БЕЗ ОЗВУЧКИ</span><button class="text-button" id="share">Ссылка на этот момент ↗</button></div>
+        <div class="under-screen"><span>КОМИКС · МУ-ОЗВУЧКА</span><button class="text-button" id="share">Ссылка на этот момент ↗</button></div>
       </section>
       <aside class="review-panel" aria-label="Инструменты просмотра">
         <div class="panel-header"><h2>Монтажный лист</h2><span id="cue-count"></span></div>
@@ -115,10 +118,22 @@ function populate(): void {
   ready = false;
   startButton.disabled = true;
   playButton.disabled = true;
-  art.alt = scene.imageAlt;
-  art.src = scene.image;
+  startButton.textContent = 'Загрузка иллюстраций…';
+  const generation = ++imageGeneration;
   lastCue = '';
   render();
+  void Promise.all(sceneImages(scene).map((source) => new Promise<void>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error(source));
+    image.src = source;
+  }))).then(() => {
+    if (generation !== imageGeneration) return;
+    ready = true;
+    startButton.disabled = false;
+    playButton.disabled = false;
+    startButton.textContent = timeline.time > 0 ? 'Смотреть с этого момента' : 'Смотреть сцену';
+  }).catch(() => { if (generation === imageGeneration) imageFailed(); });
 }
 
 function render(): void {
@@ -127,16 +142,21 @@ function render(): void {
   const index = scene.cues.indexOf(cue);
   if (lastCue !== cue.id) {
     lastCue = cue.id;
+    art.src = cue.image ?? scene.image;
+    art.alt = cue.imageAlt ?? scene.imageAlt;
     art.style.transform = `scale(${cue.camera.scale})`;
     art.style.transformOrigin = `${cue.camera.x}% ${cue.camera.y}%`;
     element('speaker').textContent = cue.speaker;
-    element('caption').textContent = cue.text;
+    element('caption-layout').textContent = cue.text;
+    element('caption').setAttribute('aria-label', cue.text);
     element('frame-counter').textContent = `КАДР ${String(index + 1).padStart(2, '0')} / ${scene.cues.length}`;
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-cue]')) {
       if (button.dataset.cue === cue.id) button.setAttribute('aria-current', 'step');
       else button.removeAttribute('aria-current');
     }
   }
+  element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
+  syncSpeech();
   element('subtitle').hidden = !started || !cue.text;
   element('fight').hidden = !started || !cue.fight;
   element('start-overlay').hidden = started;
@@ -187,20 +207,25 @@ function move(direction: -1 | 1): void {
   seek(cues[Math.max(0, Math.min(cues.length - 1, current + direction))].start);
 }
 
-art.addEventListener('load', () => {
-  ready = true;
-  startButton.disabled = false;
-  playButton.disabled = false;
-  startButton.textContent = initial.time > 0 ? 'Смотреть с этого момента' : 'Смотреть сцену';
-});
-art.addEventListener('error', () => {
+function imageFailed(): void {
+  imageGeneration++;
   pause();
   ready = false;
   startButton.disabled = true;
   playButton.disabled = true;
   startButton.textContent = 'Иллюстрация не загрузилась';
   status.textContent = 'Не удалось загрузить иллюстрацию. Обновите страницу, чтобы попробовать снова.';
-});
+}
+art.addEventListener('error', imageFailed);
+
+function syncSpeech(force = false): void {
+  if (!timeline.playing) { speechKey = ''; return; }
+  const cue = cueAt(timeline.scene, timeline.time);
+  const key = `${cue.id}:${timeline.rate}`;
+  if (!force && key === speechKey) return;
+  speechKey = key;
+  audio.speak(cue.speech, timeline.time - cue.start, timeline.rate);
+}
 startButton.addEventListener('click', () => { void play(); element('stage').focus(); });
 playButton.addEventListener('click', () => { void play(); });
 element('restart').addEventListener('click', () => { seek(0); void play(); });
@@ -209,13 +234,14 @@ element('next').addEventListener('click', () => move(1));
 scrub.addEventListener('input', () => seek(Number(scrub.value)));
 element<HTMLSelectElement>('speed').addEventListener('change', (event) => {
   timeline.setRate(Number((event.target as HTMLSelectElement).value));
+  syncSpeech(true);
 });
 element<HTMLInputElement>('volume').addEventListener('input', (event) => {
   audio.setVolume(Number((event.target as HTMLInputElement).value));
 });
 function toggleMute(): void {
   muted = !muted;
-  void audio.setMuted(muted);
+  void audio.setMuted(muted).then(() => syncSpeech(true));
   const button = element('mute');
   button.textContent = muted ? 'ЗВУК ВЫКЛ' : 'ЗВУК ВКЛ';
   button.setAttribute('aria-pressed', String(muted));

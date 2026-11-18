@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compileScene, cueAt, readSceneLink, sceneLink, type Scene } from '../src/scene.ts';
+import { compileScene, cueAt, readSceneLink, sceneLink, sceneImages, type Scene } from '../src/scene.ts';
 import { Timeline } from '../src/timeline.ts';
 import { noiseSamples } from '../src/audio.ts';
 import { scenes } from '../src/scenes.ts';
@@ -78,6 +78,7 @@ test('invalid runtime positions, deltas and playback rates are rejected', () => 
 
 test('malformed scenes fail before playback', () => {
   assert.throws(() => compileScene({ ...draft, cues: [] }));
+  assert.throws(() => compileScene({ ...draft, cues: [{ ...draft.cues[0], text: 'Длинная реплика, которая не помещается в секунду.' }] }), /не помещается/);
   assert.throws(() => compileScene({ ...draft, cues: [draft.cues[0], draft.cues[0]] }));
   for (const duration of [0, -1, NaN, Infinity]) {
     assert.throws(() => compileScene({ ...draft, cues: [{ ...draft.cues[0], duration }] }));
@@ -94,20 +95,24 @@ test('share links round-trip, clamp time and tolerate malformed or unknown scene
   assert.equal(readSceneLink('#scene=test&t=-1', [scene]).time, 0);
   assert.equal(readSceneLink('#scene=test&t=oops', [scene]).time, 0);
   assert.equal(readSceneLink('#scene=unknown&t=2', [scene]).time, 0);
-  assert.equal(readSceneLink('#scene=precinct&t=32.3', scenes).time, 32300);
+  assert.equal(readSceneLink('#scene=precinct&t=12.3', scenes).time, 12300);
 });
 
 test('district-officer scene retains the visual clue before recognition and ends before combat', () => {
   assert.equal(scenes.length, 1);
   const precinct = scenes[0];
-  assert.ok(precinct.duration >= 50000 && precinct.duration <= 65000);
-  assert.equal(precinct.cues.length, 12);
+  assert.equal(precinct.duration, 22000);
+  assert.equal(precinct.cues.length, 7);
+  assert.equal(precinct.cues.filter((cue) => cue.text).length, 4);
+  assert.equal(sceneImages(precinct).length, 3);
+  assert.notEqual(precinct.cues[0].image ?? precinct.image, precinct.cues[2].image);
+  assert.notEqual(precinct.cues[2].image, precinct.cues[5].image);
   const shoes = precinct.cues.findIndex((cue) => cue.id === 'shoes');
-  const recognition = precinct.cues.findIndex((cue) => cue.text.includes('Он у меня'));
+  const recognition = precinct.cues.findIndex((cue) => cue.id === 'recognition');
   assert.ok(shoes >= 0 && shoes < recognition);
   assert.equal(precinct.cues.at(-1)?.fight, true);
   assert.ok(precinct.cues.some((cue) => cue.text === 'Сесть ещё раз я не собирался.'));
-  assert.equal(precinct.events.filter((event) => event.sound === 'ring').length, 2);
+  assert.equal(precinct.events.filter((event) => event.sound === 'ring').length, 1);
 });
 
 test('procedural noise is repeatable, bounded and contains audible signal energy', () => {
