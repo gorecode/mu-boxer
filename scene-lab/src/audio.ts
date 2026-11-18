@@ -103,6 +103,11 @@ export class SceneAudio {
 
   play(sound: Sound): void {
     if (!this.active || this.muted || this.failed || this.context?.state !== 'running') return;
+    if (sound === 'queue-chime') {
+      this.tone(880, 0.14, 0.09);
+      this.tone(1244, 0.18, 0.07, 'sine', 0.17);
+      return;
+    }
     if (sound === 'ring') {
       for (const delay of [0, 0.12, 0.24, 0.36, 0.48, 0.6]) {
         this.tone(740, 0.09, 0.075, 'square', delay);

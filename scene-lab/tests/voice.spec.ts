@@ -21,7 +21,7 @@ test.beforeAll(async () => {
 test('real synthesized voices have signal, silence between words, different pitch and no clipping', async ({ page }) => {
   await page.goto('./');
   await page.addScriptTag({ content: bundle });
-  const plans = ['officer', 'boxer', 'boxer-angry'].map((voice) => planSpeech('Му, му?', voice as SpeechPlan['voice']));
+  const plans = ['officer', 'boxer', 'boxer-angry', 'grandma'].map((voice) => planSpeech('Му, му?', voice as SpeechPlan['voice']));
   const results = await page.evaluate(async (plans) => {
     const synth = (window as unknown as VoiceWindow).SceneMoo;
     const results = [];
@@ -49,7 +49,7 @@ test('real synthesized voices have signal, silence between words, different pitc
     }
     return results;
   }, plans);
-  expect(results).toHaveLength(3);
+  expect(results).toHaveLength(4);
   for (const result of results) {
     expect(result.active).toBeGreaterThan(0.01);
     expect(result.peak).toBeLessThan(0.95);
