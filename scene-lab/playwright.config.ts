@@ -9,7 +9,7 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:4197/mu-boxer/',
     launchOptions: {
-      executablePath: !process.env.CI && existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined,
+      executablePath: existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined,
       args: ['--no-sandbox'],
     },
     trace: 'retain-on-failure',

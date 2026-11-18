@@ -18,7 +18,7 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-`check` запускает typecheck, ESLint, модульные тесты и сборку. Браузерные тесты отдельно запускают production preview с префиксом `/mu-boxer/`, чтобы проверить загрузку из подпапки Pages. На локальном Linux используется установленный `/usr/bin/google-chrome`, если он есть; иначе нужен браузер Playwright.
+`check` запускает typecheck, ESLint, модульные тесты и сборку. Браузерные тесты отдельно запускают production preview с префиксом `/mu-boxer/`, чтобы проверить загрузку из подпапки Pages. На Linux, включая GitHub runner, используется установленный `/usr/bin/google-chrome`, если он есть; иначе нужен браузер Playwright. Workflow устанавливает Chromium только при отсутствии Chrome.
 
 ## Просмотр
 
