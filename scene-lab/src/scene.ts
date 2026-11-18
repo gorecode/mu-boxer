@@ -1,3 +1,5 @@
+import { planSpeech, type SpeechPlan, type Voice } from './speech.ts';
+
 export type Sound = 'ring' | 'receiver' | 'paper' | 'chair' | 'impact';
 export interface Cue {
   id: string;
@@ -5,6 +7,9 @@ export interface Cue {
   duration: number;
   speaker: string;
   text: string;
+  voice?: Voice;
+  image?: string;
+  imageAlt?: string;
   camera: { scale: number; x: number; y: number };
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
@@ -18,7 +23,7 @@ export interface Scene {
   opponent: string;
   cues: Cue[];
 }
-export interface TimedCue extends Cue { start: number; end: number }
+export interface TimedCue extends Cue { start: number; end: number; speech: SpeechPlan }
 export interface CompiledScene extends Omit<Scene, 'cues'> {
   cues: TimedCue[];
   duration: number;
@@ -40,7 +45,9 @@ export function compileScene(scene: Scene): CompiledScene {
     for (const event of cue.sounds ?? []) {
       if (!Number.isFinite(event.at) || event.at < 0 || event.at >= cue.duration) throw new Error('Звук вне кадра');
     }
-    const result = { ...cue, start: time, end: time + cue.duration };
+    const speech = planSpeech(cue.text, cue.voice);
+    if (speech.duration > cue.duration) throw new Error(`Реплика не помещается в кадр: ${cue.id}`);
+    const result = { ...cue, start: time, end: time + cue.duration, speech };
     time = result.end;
     return result;
   });
@@ -51,6 +58,10 @@ export function compileScene(scene: Scene): CompiledScene {
 
 export function cueAt(scene: CompiledScene, time: number): TimedCue {
   return scene.cues.find((cue) => time < cue.end) ?? scene.cues[scene.cues.length - 1];
+}
+
+export function sceneImages(scene: CompiledScene): string[] {
+  return [...new Set([scene.image, ...scene.cues.map((cue) => cue.image ?? scene.image)])];
 }
 
 export function sceneLink(scene: CompiledScene, time: number): string {
