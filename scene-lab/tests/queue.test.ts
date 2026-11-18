@@ -13,8 +13,7 @@ test('queue is a separate reviewable scene with its own introduction and inflect
   assert.equal(queue.duration, 27000);
   assert.equal(queue.cues.length, 10);
   assert.equal(sceneImages(queue).length, 5);
-  assert.equal(scenes[0].id, 'precinct');
-  assert.equal(scenes[0].duration, 24000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')?.duration, 24000);
 });
 
 test('approved dialogue progresses from an ordinary queue dispute to humane self-exoneration', () => {
@@ -60,5 +59,5 @@ test('queue links round-trip and stay separate from precinct with identical cue 
   assert.equal(readSceneLink('#scene=queue&t=999', scenes).time, 27000);
   assert.equal(readSceneLink('#scene=queue&t=-1', scenes).time, 0);
   assert.equal(readSceneLink('#scene=queue&t=bad', scenes).time, 0);
-  assert.equal(readSceneLink('#scene=unknown&t=10', scenes).scene.id, 'precinct');
+  assert.equal(readSceneLink('#scene=unknown&t=10', scenes).scene.id, 'intro');
 });

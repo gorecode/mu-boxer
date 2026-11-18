@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('starts by gesture; renders actual Web Audio signal; pauses and resumes without time drift', async ({ page }) => {
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await expect(page.getByRole('button', { name: 'Смотреть сцену', exact: true })).toBeEnabled();
   await expect(page.locator('#scrub')).toHaveValue('0');
   await expect(page.locator('#subtitle')).toBeHidden();
@@ -53,7 +53,7 @@ test('starts by gesture; renders actual Web Audio signal; pauses and resumes wit
 });
 
 test('cue review, speed, mute, seek to ending, replay, and share link work', async ({ page }) => {
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await page.locator('[data-cue="shoes"]').click();
   await expect(page.locator('#subtitle')).toBeHidden();
   await expect(page.locator('#art')).toHaveAttribute('src', /art\/precinct\.webp$/);
@@ -100,14 +100,14 @@ test('keyboard navigation and layout work without external runtime requests', as
 
 test('image failure blocks playback with a visible explanation', async ({ page }) => {
   await page.route('**/art/precinct-idle.webp', (route) => route.abort());
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await expect(page.locator('#status')).toContainText('Не удалось загрузить иллюстрацию');
   await expect(page.locator('#start')).toBeDisabled();
   await expect(page.locator('#play')).toBeDisabled();
 });
 
 test('muting active playback suspends audio; final frame stops and replay restarts', async ({ page }) => {
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await page.getByRole('button', { name: 'Смотреть сцену', exact: true }).click();
   await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('suspended');
@@ -128,7 +128,7 @@ test('audio failure falls back to subtitle playback', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'AudioContext', { value: class { constructor() { throw new Error('Audio unavailable'); } } });
   });
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await page.getByRole('button', { name: 'Смотреть сцену', exact: true }).click();
   await expect(page.locator('#status')).toContainText('Просмотр продолжится без звука');
   await expect.poll(async () => Number(await page.locator('#scrub').inputValue())).toBeGreaterThan(0);
@@ -136,7 +136,7 @@ test('audio failure falls back to subtitle playback', async ({ page }) => {
 
 
 test('all four panels preload, switch with cues, and a missing later panel blocks start', async ({ page }) => {
-  await page.goto('./');
+  await page.goto('./#scene=precinct&t=0');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#art')).toHaveAttribute('src', /precinct-idle.webp$/);
   await page.locator('[data-cue=report]').click();
@@ -146,7 +146,7 @@ test('all four panels preload, switch with cues, and a missing later panel block
   await page.locator('[data-cue=refusal]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
   await page.route('**/art/boxer-thinking.webp', (route) => route.abort());
-  await page.goto('./');
+  await page.reload();
   await expect(page.locator('#status')).toContainText('Не удалось загрузить иллюстрацию');
   await expect(page.locator('#start')).toBeDisabled();
 });
