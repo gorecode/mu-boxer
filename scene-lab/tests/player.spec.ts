@@ -71,9 +71,9 @@ test('cue review, speed, mute, seek to ending, replay, and share link work', asy
   await expect(page.locator('#fight-note')).toBeVisible();
   await page.locator('[data-cue="recognition"]').click();
   await page.getByRole('button', { name: 'Ссылка на этот момент' }).click();
-  await expect(page).toHaveURL(/#scene=precinct&t=12\.0$/);
+  await expect(page).toHaveURL(/#scene=precinct&t=13\.0$/);
   await page.reload();
-  await expect(page.locator('#scrub')).toHaveValue('12000');
+  await expect(page.locator('#scrub')).toHaveValue('13000');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await expect(page.locator('#caption-typed')).toHaveText('Понятно. Вы пока посидите.');
   await page.getByRole('button', { name: 'Сначала', exact: true }).click();
@@ -115,7 +115,7 @@ test('muting active playback suspends audio; final frame stops and replay restar
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('running');
   await page.locator('[data-cue="fight"]').click();
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('#scrub')).toHaveValue('22000', { timeout: 6000 });
+  await expect(page.locator('#scrub')).toHaveValue('24000', { timeout: 6000 });
   await expect(page.getByRole('button', { name: 'Воспроизвести', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('suspended');
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
@@ -134,15 +134,17 @@ test('audio failure falls back to subtitle playback', async ({ page }) => {
 });
 
 
-test('all three panels preload, switch with cues, and a missing later panel blocks start', async ({ page }) => {
+test('all four panels preload, switch with cues, and a missing later panel blocks start', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#art')).toHaveAttribute('src', /precinct-idle.webp$/);
   await page.locator('[data-cue=report]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /art\/precinct.webp$/);
+  await page.locator('[data-cue=thinking]').click();
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-thinking.webp$/);
   await page.locator('[data-cue=refusal]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
-  await page.route('**/art/boxer-angry.webp', (route) => route.abort());
+  await page.route('**/art/boxer-thinking.webp', (route) => route.abort());
   await page.goto('./');
   await expect(page.locator('#status')).toContainText('Не удалось загрузить иллюстрацию');
   await expect(page.locator('#start')).toBeDisabled();
@@ -161,4 +163,27 @@ test('mid-phrase seek shows only elapsed text and playback continues at selected
   await expect.poll(async () => Number(await page.locator('#scrub').inputValue())).toBeGreaterThan(before + 700);
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
   await expect(page.locator('#caption-typed')).not.toHaveText(text!);
+});
+
+
+test('officer names concrete legs; silent thinking cuts to the angry face and full final line', async ({ page }) => {
+  await page.goto('./#scene=precinct&t=10');
+  await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
+  await expect(page.locator('#caption-typed')).toHaveText('Ноги в бетоне?');
+  await expect(page.locator('[data-cue=shoes]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#subtitle')).toBeHidden();
+  await page.locator('[data-cue=thinking]').click();
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-thinking.webp$/);
+  await expect(page.locator('#subtitle')).toBeHidden();
+  await expect(page.locator('#caption-typed')).toHaveText('');
+  const camera = await page.locator('#art').evaluate((image) => ({
+    transform: image.style.transform, origin: image.style.transformOrigin, opacity: getComputedStyle(image).opacity,
+  }));
+  await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+  await expect(page.locator('[data-cue=thinking]')).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
+  expect(await page.locator('#art').evaluate((image) => ({
+    transform: image.style.transform, origin: image.style.transformOrigin, opacity: getComputedStyle(image).opacity,
+  }))).toEqual(camera);
+  await expect(page.locator('#caption-typed')).toHaveText('Сесть ещё раз я не собирался.');
 });
