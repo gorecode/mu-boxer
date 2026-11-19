@@ -16,6 +16,7 @@ export interface Cue {
   speaker: string;
   text: string;
   voice?: Voice;
+  speechDelay?: number;
   image?: string;
   imageAlt?: string;
   camera: Camera;
@@ -67,7 +68,14 @@ export function compileScene(scene: Scene): CompiledScene {
     for (const event of cue.sounds ?? []) {
       if (!Number.isFinite(event.at) || event.at < 0 || event.at >= cue.duration) throw new Error('Звук вне кадра');
     }
+    const delay = cue.speechDelay ?? 0;
+    if (!Number.isFinite(delay) || delay < 0 || delay >= cue.duration) throw new Error('Неверная задержка речи');
     const speech = planSpeech(cue.text, cue.voice);
+    if (speech.duration > 0 && delay > 0) {
+      speech.duration += delay;
+      speech.letters = speech.letters.map((letter) => ({ ...letter, at: letter.at + delay }));
+      speech.syllables = speech.syllables.map((syllable) => ({ ...syllable, at: syllable.at + delay, end: syllable.end + delay }));
+    }
     if (speech.duration > cue.duration) throw new Error(`Реплика не помещается в кадр: ${cue.id}`);
     const result = { ...cue, start: time, end: time + cue.duration, speech };
     time = result.end;

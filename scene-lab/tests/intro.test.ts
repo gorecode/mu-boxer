@@ -2,9 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scenes } from '../src/scenes.ts';
 import { compileScene, cueAt, readSceneLink, sceneImages, sceneLink, visualAt } from '../src/scene.ts';
+import { planSpeech, subtitleAt, voiceCurves } from '../src/speech.ts';
 import { Timeline } from '../src/timeline.ts';
 
 const intro = scenes[0];
+const named = (id: string) => intro.cues.find((cue) => cue.id === id)!;
 
 test('the narrated intro opens by default and retains links to the other scenes', () => {
   assert.equal(intro.id, 'intro');
@@ -22,80 +24,120 @@ test('the narrated intro opens by default and retains links to the other scenes'
   }
 });
 
-test('the approved first-person text is spoken only by the calm boxer and ends at the gym', () => {
-  assert.equal(intro.cues.map((cue) => cue.text).join(' '),
+test('the approved words survive the new thought boundaries and calm narration', () => {
+  const normalized = (text: string) => text.replace(/[.,…]/gu, ' ').replace(/\s+/gu, ' ').trim();
+  assert.equal(normalized(intro.cues.map((cue) => cue.text).join(' ')), normalized(
     'Когда-то убили моего лучшего друга. А пистолет нашли у меня в кармане. Как он туда попал, я не знал. ' +
     'Суд не стал слушать. И меня посадили в тюрьму. Но я сбежал. И вернулся в Москву, чтобы найти убийцу. ' +
     'Но весь мир был против меня. Каждый встречный пытался мне помешать. ' +
     'Я никому не хотел причинять зла. Но был вынужден. ' +
     'Преодолев все трудности, я добрался до мерзавца, который меня подставил. ' +
-    'Меня оправдали. Я снова стал заниматься боксом.');
-  assert.ok(intro.cues.length > 0);
-  for (const cue of intro.cues) {
+    'Меня оправдали. Я снова стал заниматься боксом.'));
+  const spoken = intro.cues.filter((cue) => cue.text);
+  assert.ok(spoken.length > 0);
+  for (const cue of spoken) {
     assert.equal(cue.speaker, 'Боксёр · рассказ');
     assert.equal(cue.voice, 'boxer');
     assert.ok(cue.speech.duration > 0 && cue.speech.duration < cue.duration);
-    assert.ok(!cue.fight && !cue.titleCard);
   }
+  assert.ok(intro.cues.every((cue) => !cue.fight && !cue.titleCard));
   assert.match(visualAt(intro, intro.duration).image, /intro-gym-v3.webp$/);
-  const noHarm = intro.cues.find((cue) => cue.id === 'no-harm')!;
-  assert.ok(noHarm.duration - noHarm.speech.duration >= 650);
+});
+
+test('a thought finishes before its pause and the court subtitle clears before imprisonment', () => {
+  for (const [id, minimum] of [['murder', 1200], ['pocket', 1200], ['court', 1000], ['no-harm', 1500], ['acquittal', 900]] as const) {
+    const cue = named(id);
+    assert.ok(cue.duration - cue.speech.duration >= minimum, id);
+    assert.equal(subtitleAt(cue.speech, cue.duration - 1), cue.text);
+  }
+  const court = named('court'), silence = named('court-silence'), prison = named('prison');
+  assert.equal(court.text, 'Суд не стал слушать.');
+  assert.equal(silence.start, court.end);
+  assert.equal(silence.end, prison.start);
+  assert.equal(silence.duration, 700);
+  assert.equal(silence.text, '');
+  assert.equal(silence.speech.duration, 0);
+  assert.equal(prison.text, 'И меня посадили в тюрьму.');
+  assert.equal(cueAt(intro, court.end - 1), court);
+  assert.equal(cueAt(intro, court.end), silence);
+  const noHarm = named('no-harm');
   assert.match(visualAt(intro, noHarm.end - 1).image, /boxer-angry.webp$/);
   assert.match(visualAt(intro, noHarm.end).image, /intro-woman-after-v3.webp$/);
+  assert.ok(named('forced').speechDelay! >= 900);
 });
 
-test('all fifteen illustrations preload, including later plans inside a single spoken cue', () => {
+test('the gun zoom and pan to the face are continuous, settle, and precede the next thought', () => {
+  const pistol = named('pistol'), pocket = named('pocket'), recognition = named('recognition');
+  assert.deepEqual(visualAt(intro, pistol.start + 1600).camera, { scale: 1, x: 50, y: 50 });
+  const moving = visualAt(intro, pistol.start + 2850).camera;
+  assert.ok(moving.scale > 1 && moving.scale < 2.5);
+  const gun = visualAt(intro, pistol.end - 1).camera;
+  assert.deepEqual(visualAt(intro, pocket.start).camera, gun);
+  assert.deepEqual(visualAt(intro, pocket.end - 1).camera, gun);
+  assert.deepEqual(visualAt(intro, recognition.start).camera, gun);
+  const panning = visualAt(intro, recognition.start + 1100).camera;
+  assert.ok(panning.x > 19 && panning.x < 68);
+  const face = visualAt(intro, recognition.start + 2200).camera;
+  assert.deepEqual(face, { scale: 2.25, x: 19, y: 13 });
+  assert.deepEqual(visualAt(intro, recognition.start + 4000).camera, face);
+  assert.equal(subtitleAt(recognition.speech, 2399), '');
+  assert.ok(recognition.speech.syllables[0].at > 2200);
+});
+
+test('speech delay shifts voice and typed text together and survives seeking and speed changes', () => {
+  const cue = named('recognition'), plain = planSpeech(cue.text, cue.voice), delay = 2400;
+  assert.equal(cue.speech.duration, plain.duration + delay);
+  assert.equal(cue.speech.letters[0].at, plain.letters[0].at + delay);
+  assert.equal(cue.speech.syllables[0].at, plain.syllables[0].at + delay);
+  assert.equal(cue.speech.syllables[0].end, plain.syllables[0].end + delay);
+  assert.equal(subtitleAt(cue.speech, delay), '');
+  assert.equal(subtitleAt(cue.speech, delay + 100), 'К');
+  assert.ok(voiceCurves(cue.speech, 0, 1).gain.slice(0, 400).every((gain) => gain === 0));
+  for (const rate of [0.5, 1, 2]) {
+    const offset = delay + plain.syllables[0].at + 30;
+    const resumed = voiceCurves(cue.speech, offset, rate);
+    assert.ok(resumed.gain[0] > 0);
+    assert.equal(resumed.duration, (cue.speech.duration - offset) / rate / 1000);
+  }
+  for (const speechDelay of [-1, NaN, Infinity, cue.duration]) {
+    assert.throws(() => compileScene({ ...intro, cues: [{ ...cue, speechDelay }] }), /Неверная задержка речи/);
+  }
+  assert.throws(() => compileScene({ ...intro, cues: [{ ...cue, speechDelay: cue.duration - 1 }] }), /Реплика не помещается/);
+});
+
+test('all original illustrations preload in the same narrative order', () => {
   assert.equal(sceneImages(intro).length, 14);
-  const actual = intro.cues.flatMap((cue) => cue.shots ?? []).map((shot) => shot.image.split('/').at(-1));
-  assert.deepEqual(actual, [
-    'intro-gym-v3.webp', 'intro-arrest.webp', 'intro-arrest.webp', 'intro-arrest.webp',
-    'intro-court-v2.webp', 'intro-cell-v3.webp', 'intro-escape-v3.webp', 'intro-road-v3.webp',
-    'intro-driver-v3.webp', 'intro-biker-v3.webp', 'intro-woman-v3.webp', 'boxer-angry.webp',
-    'intro-woman-after-v3.webp', 'intro-controller-v3.webp', 'intro-billiards-v3.webp',
-    'intro-acquittal-v3.webp', 'intro-gym-v3.webp',
+  const images = intro.cues.flatMap((cue) => cue.shots ?? []).map((shot) => shot.image.split('/').at(-1));
+  assert.deepEqual(images.filter((image, index) => index === 0 || image !== images[index - 1]), [
+    'intro-gym-v3.webp', 'intro-arrest.webp', 'intro-court-v2.webp', 'intro-cell-v3.webp',
+    'intro-escape-v3.webp', 'intro-road-v3.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
+    'intro-woman-v3.webp', 'boxer-angry.webp', 'intro-woman-after-v3.webp', 'intro-controller-v3.webp',
+    'intro-billiards-v3.webp', 'intro-acquittal-v3.webp', 'intro-gym-v3.webp',
   ]);
-  for (const cue of intro.cues) {
-    for (const [index, shot] of (cue.shots ?? []).entries()) {
-      assert.equal(visualAt(intro, cue.start + shot.at).image, shot.image);
-      if (index) assert.equal(visualAt(intro, cue.start + shot.at - 1).image, cue.shots![index - 1].image);
-    }
+  for (const cue of intro.cues) for (const shot of cue.shots!) {
+    assert.equal(visualAt(intro, cue.start + shot.at).image, shot.image);
   }
 });
 
-test('gun and face framing follow the spoken words without restarting the narration', () => {
-  const pistol = intro.cues.find((cue) => cue.id === 'pistol')!;
-  const [, gun, face] = pistol.shots!;
-  for (const [shot, word] of [[gun, 'пистолет'], [face, 'Как']] as const) {
-    const offset = pistol.text.indexOf(word);
-    assert.equal(shot.at, pistol.speech.letters.find((letter) => letter.end > offset)!.at);
-    assert.equal(cueAt(intro, pistol.start + shot.at), pistol);
-  }
-  assert.ok(gun.camera.x > face.camera.x);
-  assert.ok(gun.camera.scale > 2);
-});
-
-test('camera movement is deterministic at seek, pause, reduced motion and the final boundary', () => {
-  const first = intro.cues[0];
-  const from = first.shots![0].camera;
-  const to = first.shots![0].cameraEnd!;
-  const middle = visualAt(intro, first.duration / 2);
-  assert.equal(middle.camera.scale, (from.scale + to.scale) / 2);
-  assert.deepEqual(visualAt(intro, first.duration / 2, true).camera, from);
+test('camera holds and movements remain deterministic at pause, seek, reduced motion and completion', () => {
+  const cue = named('pistol');
   const player = new Timeline(intro);
-  player.play(); player.advance(first.duration / 2); player.pause(); player.advance(1000);
-  assert.deepEqual(visualAt(intro, player.time), middle);
+  player.seek(cue.start + 2850); player.play(); player.pause();
+  const camera = visualAt(intro, player.time);
+  player.advance(1000);
+  assert.deepEqual(visualAt(intro, player.time), camera);
+  assert.deepEqual(visualAt(intro, player.time, true).camera, { scale: 1, x: 50, y: 50 });
   player.seek(intro.duration); player.play();
   assert.equal(player.time, 0);
   player.advance(intro.duration + 1);
   assert.equal(player.playing, false);
+  assert.deepEqual(visualAt(intro, intro.duration - 1000).camera, { scale: 1, x: 50, y: 50 });
   assert.deepEqual(visualAt(intro, intro.duration).camera, { scale: 1, x: 50, y: 50 });
-  const precinct = scenes[1];
-  assert.deepEqual(visualAt(precinct, 0).camera, precinct.cues[0].camera);
+  assert.deepEqual(visualAt(scenes[1], 0).camera, scenes[1].cues[0].camera);
 });
 
 test('invalid plan ordering, timing, assets and camera endpoints fail before playback', () => {
-  const cue = intro.cues[0];
-  const shot = cue.shots![0];
+  const cue = intro.cues[0], shot = cue.shots![0];
   const invalid = [
     [], [{ ...shot, at: 1 }], [shot, { ...shot, at: 0 }],
     [shot, { ...shot, at: cue.duration }], [shot, { ...shot, at: NaN }],
