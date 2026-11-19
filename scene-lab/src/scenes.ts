@@ -1,4 +1,6 @@
 import { compileScene, type Scene } from './scene.ts';
+import { banditScene } from './bandit-scene.ts';
+import { epilogueScene } from './epilogue-scene.ts';
 import { queue } from './queue-scene.ts';
 import { intro } from './intro-scene.ts';
 import { prologue } from './prologue-scene.ts';
@@ -49,4 +51,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(intro), compileScene(prologue), compileScene(workerScene), compileScene(precinct), compileScene(animator), compileScene(sliderScene), compileScene(serviceScene), compileScene(queue)];
+export const scenes = [compileScene(intro), compileScene(prologue), compileScene(workerScene), compileScene(precinct), compileScene(animator), compileScene(sliderScene), compileScene(serviceScene), compileScene(queue), compileScene(banditScene), compileScene(epilogueScene)];

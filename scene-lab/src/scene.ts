@@ -1,6 +1,6 @@
 import { planSpeech, type SpeechPlan, type Voice } from './speech.ts';
 
-export type Sound = 'ring' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime';
+export type Sound = 'ring' | 'ringback' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime';
 export interface Camera { scale: number; x: number; y: number }
 interface Shot {
   at: number;

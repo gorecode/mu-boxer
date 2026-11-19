@@ -64,7 +64,8 @@ h2 { font: 19px Georgia, serif; margin: 0; }
 .panel-header > span { color: #948478; font: 8px ui-monospace, monospace; white-space: nowrap; }
 .field-label { display: block; font-size: 8px; color: #a08d7d; letter-spacing: 1.5px; margin-bottom: 9px; }
 select { color: #dbccbf; background: #2b241f; border: 1px solid #67504466; border-radius: 0; padding: 9px; font-size: 12px; }
-#scene-select { width: 100%; }
+#scene-select, #mode-select { width: 100%; }
+#mode-select { margin-bottom: 16px; }
 .review-settings { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 19px; color: #ae9f91; font-size: 11px; }
 #speed { padding: 4px 8px; }
 .cue-list { padding: 0; margin: 0; list-style: none; }

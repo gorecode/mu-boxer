@@ -9,7 +9,7 @@ const scene = scenes.find((scene) => scene.id === 'worker')!;
 const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
 test('worker continues the prologue with isolated links and leaves the officer arrival intact', () => {
-  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'slider', 'service', 'queue']);
+  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'slider', 'service', 'queue', 'bandit', 'epilogue']);
   assert.equal(scene.duration, 23120);
   assert.equal(scene.opponent, 'Рабочего');
   assert.deepEqual(readSceneLink(sceneLink(scene, 18900), scenes), { scene, time: 18900 });
