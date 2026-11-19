@@ -13,7 +13,7 @@ test('queue is a separate reviewable scene with its own introduction and inflect
   assert.equal(queue.duration, 27000);
   assert.equal(queue.cues.length, 10);
   assert.equal(sceneImages(queue).length, 5);
-  assert.equal(scenes.find((scene) => scene.id === 'precinct')?.duration, 24000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')?.duration, 30000);
 });
 
 test('approved dialogue progresses from an ordinary queue dispute to humane self-exoneration', () => {

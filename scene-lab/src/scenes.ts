@@ -2,6 +2,7 @@ import { compileScene, type Scene } from './scene.ts';
 import { queue } from './queue-scene.ts';
 import { intro } from './intro-scene.ts';
 import { prologue } from './prologue-scene.ts';
+import { workerScene } from './worker-scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
@@ -12,6 +13,13 @@ const precinct: Scene = {
   opponent: 'Участкового',
   intro: { location: 'Москва. Кабинет участкового.', title: 'Мне только\nсправку получить.' },
   cues: [
+    { id: 'arrival', label: 'Рабочий больше не возражал', duration: 6000, speechDelay: 150,
+      speaker: 'Боксёр · рассказ', voice: 'boxer', text: 'Рабочий больше не возражал. Я прошёл к участковому.',
+      camera: wide, shots: [
+        { at: 0, image: art('worker-aftermath-v2'), imageAlt: 'Рабочий лежит избитым на сухом краю; Боксёр идёт через свежий бетон к открытой двери участкового, оставляя глубокие следы.', camera: wide },
+        { at: 600, image: art('worker-aftermath-v2'), imageAlt: 'Камера приближается к входящему Боксёру и испорченной дорожке. Рабочий остаётся на сухом покрытии.', camera: wide, cameraEnd: { scale: 1.05, x: 50, y: 45 } },
+        { at: 3000, image: art('worker-aftermath-v2'), imageAlt: 'Выдержка на пути к открытой двери и следах в бетоне.', camera: { scale: 1.05, x: 50, y: 45 } },
+      ] },
     { id: 'request', label: 'За справкой', duration: 4000, speaker: 'Боксёр', voice: 'boxer', camera: wide,
       text: 'Мне справку, что я не судимый.' },
     { id: 'call', label: 'Звонок', duration: 2000, speaker: '', camera: wide, text: '',
@@ -38,4 +46,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(intro), compileScene(prologue), compileScene(precinct), compileScene(queue)];
+export const scenes = [compileScene(intro), compileScene(prologue), compileScene(workerScene), compileScene(precinct), compileScene(queue)];

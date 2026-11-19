@@ -101,10 +101,10 @@ test('share links round-trip, clamp time and tolerate malformed or unknown scene
 
 test('district-officer scene retains the visual clue before recognition and ends before combat', () => {
   const precinct = scenes.find((scene) => scene.id === 'precinct')!;
-  assert.equal(precinct.duration, 24000);
-  assert.equal(precinct.cues.length, 9);
-  assert.equal(precinct.cues.filter((cue) => cue.text).length, 6);
-  assert.equal(sceneImages(precinct).length, 4);
+  assert.equal(precinct.duration, 30000);
+  assert.equal(precinct.cues.length, 10);
+  assert.equal(precinct.cues.filter((cue) => cue.text).length, 7);
+  assert.equal(sceneImages(precinct).length, 5);
   const report = precinct.cues.find((cue) => cue.id === 'report')!;
   const clue = precinct.cues.find((cue) => cue.id === 'clue')!;
   const shoes = precinct.cues.find((cue) => cue.id === 'shoes')!;

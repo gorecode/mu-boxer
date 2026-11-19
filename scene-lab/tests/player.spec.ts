@@ -33,7 +33,7 @@ test('starts by gesture; renders actual Web Audio signal; pauses and resumes wit
   await expect(page.locator('#subtitle')).toBeHidden();
   expect(await page.evaluate(() => (window as unknown as AudioWindow).audioContexts.length)).toBe(0);
   await page.getByRole('button', { name: 'Смотреть сцену', exact: true }).click();
-  await expect(page.locator('#caption-typed')).toContainText('Мне');
+  await expect(page.locator('#caption-typed')).toContainText('Рабочий');
   await expect.poll(() => page.evaluate(() => {
     const context = (window as unknown as AudioWindow).audioContexts[0];
     const buffer = new Float32Array(2048);
@@ -43,7 +43,7 @@ test('starts by gesture; renders actual Web Audio signal; pauses and resumes wit
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
   const time = await page.locator('#scrub').inputValue();
   const caption = await page.locator('#caption-typed').textContent();
-  expect(caption!.length).toBeLessThan('Мне справку, что я не судимый.'.length);
+  expect(caption!.length).toBeLessThan('Рабочий больше не возражал. Я прошёл к участковому.'.length);
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('suspended');
   await page.waitForTimeout(200);
   await expect(page.locator('#scrub')).toHaveValue(time);
@@ -72,13 +72,13 @@ test('cue review, speed, mute, seek to ending, replay, and share link work', asy
   await expect(page.locator('#fight-note')).toBeVisible();
   await page.locator('[data-cue="recognition"]').click();
   await page.getByRole('button', { name: 'Ссылка на этот момент' }).click();
-  await expect(page).toHaveURL(/#scene=precinct&t=13\.0$/);
+  await expect(page).toHaveURL(/#scene=precinct&t=19\.0$/);
   await page.reload();
-  await expect(page.locator('#scrub')).toHaveValue('13000');
+  await expect(page.locator('#scrub')).toHaveValue('19000');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await expect(page.locator('#caption-typed')).toHaveText('Понятно. Вы пока посидите.');
   await page.getByRole('button', { name: 'Сначала', exact: true }).click();
-  await expect(page.locator('#caption-typed')).toContainText('Мне');
+  await expect(page.locator('#caption-typed')).toContainText('Рабочий');
 });
 
 test('keyboard navigation and layout work without external runtime requests', async ({ page }) => {
@@ -89,9 +89,9 @@ test('keyboard navigation and layout work without external runtime requests', as
   await page.goto('./#scene=precinct&t=0');
   await page.locator('#stage').focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('[data-cue=call]')).toHaveAttribute('aria-current', 'step');
-  await page.keyboard.press('ArrowLeft');
   await expect(page.locator('[data-cue=request]')).toHaveAttribute('aria-current', 'step');
+  await page.keyboard.press('ArrowLeft');
+  await expect(page.locator('[data-cue=arrival]')).toHaveAttribute('aria-current', 'step');
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, viewport: innerWidth }));
   expect(width.scroll).toBeLessThanOrEqual(width.viewport);
   expect(external).toEqual([]);
@@ -116,11 +116,11 @@ test('muting active playback suspends audio; final frame stops and replay restar
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('running');
   await page.locator('[data-cue="fight"]').click();
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('#scrub')).toHaveValue('24000', { timeout: 6000 });
+  await expect(page.locator('#scrub')).toHaveValue('30000', { timeout: 6000 });
   await expect(page.getByRole('button', { name: 'Воспроизвести', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('suspended');
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('#caption-typed')).toContainText('Мне');
+  await expect(page.locator('#caption-typed')).toContainText('Рабочий');
   expect(await page.evaluate(() => (window as unknown as AudioWindow).audioContexts.length)).toBe(1);
 });
 
@@ -135,9 +135,11 @@ test('audio failure falls back to subtitle playback', async ({ page }) => {
 });
 
 
-test('all four panels preload, switch with cues, and a missing later panel blocks start', async ({ page }) => {
+test('all five panels preload, switch with cues, and a missing later panel blocks start', async ({ page }) => {
   await page.goto('./#scene=precinct&t=0');
   await expect(page.locator('#start')).toBeEnabled();
+  await expect(page.locator('#art')).toHaveAttribute('src', /worker-aftermath-v2.webp$/);
+  await page.locator('[data-cue=request]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /precinct-idle.webp$/);
   await page.locator('[data-cue=report]').click();
   await expect(page.locator('#art')).toHaveAttribute('src', /art\/precinct.webp$/);
@@ -152,7 +154,7 @@ test('all four panels preload, switch with cues, and a missing later panel block
 });
 
 test('mid-phrase seek shows only elapsed text and playback continues at selected speed', async ({ page }) => {
-  await page.goto('./#scene=precinct&t=0.5');
+  await page.goto('./#scene=precinct&t=6.5');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await expect(page.locator('#caption-typed')).toContainText('Мне');
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
@@ -168,7 +170,7 @@ test('mid-phrase seek shows only elapsed text and playback continues at selected
 
 
 test('officer names concrete legs; split reaction pauses before the angry face', async ({ page }) => {
-  await page.goto('./#scene=precinct&t=10');
+  await page.goto('./#scene=precinct&t=16');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await expect(page.locator('#caption-typed')).toHaveText('Ноги в бетоне?');
   await expect(page.locator('[data-cue=shoes]')).toHaveAttribute('aria-current', 'step');
@@ -194,18 +196,18 @@ test('officer names concrete legs; split reaction pauses before the angry face',
 test('officer reports the beaten worker before asking about concrete on the suspect', async ({ page }) => {
   await page.goto('./#scene=precinct&t=0');
   await expect(page.locator('#start')).toBeEnabled();
-  await page.locator('#scrub').fill('6000');
+  await page.locator('#scrub').fill('12000');
   await expect(page.locator('#caption-typed')).toHaveText('');
   await expect(page.locator('[data-cue=report]')).toHaveText(/Рабочего избили/);
-  await page.locator('#scrub').fill('8755');
+  await page.locator('#scrub').fill('14755');
   await expect(page.locator('#caption-typed')).toHaveText('Рабочего избили? Приметы?');
   await expect(page.locator('#art')).toHaveAttribute('src', /precinct.webp$/);
-  await page.locator('#scrub').fill('9999');
+  await page.locator('#scrub').fill('15999');
   await expect(page.locator('#caption-typed')).toHaveText('Рабочего избили? Приметы?');
   await expect(page.locator('[data-cue=report]')).toHaveAttribute('aria-current', 'step');
-  await page.locator('#scrub').fill('10000');
+  await page.locator('#scrub').fill('16000');
   await expect(page.locator('#caption-typed')).toHaveText('');
   await expect(page.locator('[data-cue=clue]')).toHaveAttribute('aria-current', 'step');
-  await page.locator('#scrub').fill('11799');
+  await page.locator('#scrub').fill('17799');
   await expect(page.locator('#caption-typed')).toHaveText('Ноги в бетоне?');
 });
