@@ -110,7 +110,7 @@ test('all original illustrations preload in the same narrative order', () => {
   const images = intro.cues.flatMap((cue) => cue.shots ?? []).map((shot) => shot.image.split('/').at(-1));
   assert.deepEqual(images.filter((image, index) => index === 0 || image !== images[index - 1]), [
     'intro-gym-v3.webp', 'intro-arrest.webp', 'intro-court-v2.webp', 'intro-cell-v3.webp',
-    'intro-escape-v5.webp', 'intro-road-v4.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
+    'intro-escape-v6.webp', 'intro-road-v4.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
     'intro-woman-v3.webp', 'boxer-angry.webp', 'intro-woman-after-v4.webp', 'intro-controller-v3.webp',
     'intro-billiards-v4.webp', 'intro-acquittal-v3.webp', 'intro-gym-v4.webp',
   ]);
