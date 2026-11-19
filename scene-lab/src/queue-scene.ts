@@ -3,7 +3,7 @@ import type { Scene } from './scene.ts';
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
 export const queue: Scene = {
-  id: 'queue', title: 'Только через мой труп', subtitle: 'Глава 07 · Бабка',
+  id: 'queue', title: 'Только через мой труп', subtitle: 'Глава 06 · Бабка',
   intro: { location: 'Приёмная. Электронная очередь.', title: 'Меня вызвали.' },
   image: art('queue-wide'),
   imageAlt: 'Боксёр идёт к окну приёма. Бабка в берете перекрывает проход клетчатой сумкой на колёсиках.',

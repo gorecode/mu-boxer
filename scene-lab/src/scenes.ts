@@ -5,6 +5,7 @@ import { prologue } from './prologue-scene.ts';
 import { workerScene } from './worker-scene.ts';
 import { animator } from './animator-scene.ts';
 import { sliderScene } from './slider-scene.ts';
+import { serviceScene } from './service-scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
@@ -48,4 +49,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(intro), compileScene(prologue), compileScene(workerScene), compileScene(precinct), compileScene(animator), compileScene(sliderScene), compileScene(queue)];
+export const scenes = [compileScene(intro), compileScene(prologue), compileScene(workerScene), compileScene(precinct), compileScene(animator), compileScene(sliderScene), compileScene(serviceScene), compileScene(queue)];

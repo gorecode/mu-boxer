@@ -11,7 +11,7 @@ const cue = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 test('slider follows the animator with aftermath, route and a new encounter in that order', () => {
   assert.ok(scene);
   assert.equal(scenes[scenes.indexOf(scene) - 1].id, 'animator');
-  assert.equal(scenes[scenes.indexOf(scene) + 1].id, 'queue');
+  assert.equal(scenes[scenes.indexOf(scene) + 1].id, 'service');
   assert.equal(scene.duration, 32700);
   assert.equal(scene.opponent, 'Неформала');
   for (const [at, id, image] of [
