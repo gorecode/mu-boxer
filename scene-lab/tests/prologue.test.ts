@@ -17,7 +17,7 @@ test('prologue follows the recap in the review list and has isolated seekable li
   assert.equal(readSceneLink('#scene=prologue&t=-1', scenes).time, 0);
   assert.equal(readSceneLink('#scene=prologue&t=NaN', scenes).time, 0);
   assert.equal(scenes.find((scene) => scene.id === 'intro')!.duration, 64254);
-  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 30000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 31100);
 });
 
 test('the approved setup uses only calm boxer narration and ends before an encounter', () => {

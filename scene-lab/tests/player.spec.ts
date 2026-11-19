@@ -76,7 +76,7 @@ test('cue review, speed, mute, seek to ending, replay, and share link work', asy
   await page.reload();
   await expect(page.locator('#scrub')).toHaveValue('19000');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
-  await expect(page.locator('#caption-typed')).toHaveText('Понятно. Вы пока посидите.');
+  await expect(page.locator('#caption-typed')).toHaveText('Понятно.');
   await page.getByRole('button', { name: 'Сначала', exact: true }).click();
   await expect(page.locator('#caption-typed')).toContainText('Рабочий');
 });
@@ -116,7 +116,7 @@ test('muting active playback suspends audio; final frame stops and replay restar
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('running');
   await page.locator('[data-cue="fight"]').click();
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('#scrub')).toHaveValue('30000', { timeout: 6000 });
+  await expect(page.locator('#scrub')).toHaveValue('31100', { timeout: 6000 });
   await expect(page.getByRole('button', { name: 'Воспроизвести', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => (window as unknown as AudioWindow).audioContexts[0].state)).toBe('suspended');
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
@@ -183,7 +183,7 @@ test('officer names concrete legs; split reaction pauses before the angry face',
     transform: image.style.transform, origin: image.style.transformOrigin, opacity: getComputedStyle(image).opacity,
   }));
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await expect(page.locator('#caption-typed')).toHaveText('Сесть?!?');
+  await expect(page.locator('#caption-typed')).toHaveText('Сидеть?!?');
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-thinking.webp$/);
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
   expect(await page.locator('#art').evaluate((image) => ({

@@ -20,14 +20,14 @@ test('queue deep link shows its own intro, approved dialogue, deadpan excuse and
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
   await expect(page.locator('#caption-typed')).toHaveText('Убивать эту женщину я не собирался.');
   await expect(page.locator('#art')).toHaveAttribute('src', /queue-boxer-ready.webp$/);
-  await expect(page.locator('#caption-typed')).toHaveText('Поэтому я был вынужден начать драку.');
+  await expect(page.locator('#caption-typed')).toHaveText('Но она не оставила мне выбора.');
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
   await page.getByRole('button', { name: 'Ссылка на этот момент' }).click();
   const link = page.url();
   await page.reload();
   await expect(page.locator('#scene-select')).toHaveValue('queue');
   await expect(page).toHaveURL(link);
-  await expect(page.locator('#caption-typed')).toHaveText('Поэтому я был вынужден начать драку.');
+  await expect(page.locator('#caption-typed')).toHaveText('Но она не оставила мне выбора.');
   await page.locator('[data-cue=fight]').click();
   await expect(page.locator('#fight')).toBeVisible();
   await expect(page.locator('#opponent')).toHaveText('БАБКИ');
@@ -57,7 +57,7 @@ test('switching scenes pauses real audio, resets position and restores the selec
   await expect.poll(() => page.evaluate(() => (window as unknown as Window & { sceneContexts: AudioContext[] }).sceneContexts[0].state)).toBe('running');
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('precinct');
   await expect(page.locator('#story-intro')).toHaveText('Мне только\nсправку получить.');
-  await expect(page.locator('#story-duration')).toContainText('30 с');
+  await expect(page.locator('#story-duration')).toContainText('31.1 с');
   await expect(page.locator('#scrub')).toHaveValue('0');
   await expect(page.locator('#art')).toHaveAttribute('src', /worker-aftermath-v2.webp$/);
   expect(await page.evaluate(() => (window as unknown as Window & { sceneContexts: AudioContext[] }).sceneContexts.length)).toBe(1);
@@ -124,7 +124,7 @@ test('transition art, camera and subtitle boundaries survive seeking before the 
   await page.goto('./#scene=queue&t=0');
   await expect(page.locator('#start')).toBeEnabled();
   for (const [time, art, text] of [[0, 'aftermath-v2', ''], [3500, 'aftermath-v2', 'Мои способности её убедили.'],
-    [4200, 'entrance-v1', ''], [8500, 'entrance-v1', 'За справкой пришлось обратиться к другим сотрудникам.'],
+    [4200, 'entrance-v1', ''], [8500, 'entrance-v1', 'Но за справкой пришлось обратиться к другим сотрудникам.'],
     [9200, 'terminal-v2', ''], [12900, 'terminal-v2', 'Здесь всё было организовано.'],
     [13000, 'ticket', ''], [14500, 'wide', ''], [16000, 'grandma', '']] as const) {
     await page.locator('#scrub').fill(String(time));

@@ -4,7 +4,6 @@ const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/$
 const wide = { scale: 1, x: 50, y: 50 };
 const boxer = { scale: 1.45, x: 0, y: 0 };
 const worker = { scale: 1.45, x: 100, y: 25 };
-const angry = { scale: 3.2, x: 12, y: 5 };
 const courtyard = art('worker-wide-v2');
 const ready = art('worker-ready-v2');
 
@@ -27,21 +26,17 @@ export const workerScene: Scene = {
     { id: 'tape', label: 'А вот же лента', duration: 2300, speechDelay: 100,
       speaker: 'Рабочий', voice: 'officer', text: 'А вот же лента.', camera: wide,
       image: art('worker-tape-v2'), imageAlt: 'Рабочий деловито показывает на ленту перед Боксёром; никто не нападает.' },
-    { id: 'reason', label: 'Нет времени обходить', duration: 3700, speechDelay: 150,
+    { id: 'reason', label: 'Сам шёл к участковому', duration: 3400, speechDelay: 150,
       speaker: 'Боксёр · про себя', voice: 'boxer',
-      text: 'У меня не было времени обходить.', camera: boxer },
-    { id: 'realization', label: 'И я понял…', duration: 1900, speechDelay: 100,
-      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'И я понял…', camera: boxer },
-    { id: 'flash', label: 'Озарение', duration: 120, speaker: '', text: '',
-      image: ready, imageAlt: 'Короткая вспышка озарения; злое лицо взято из того же рисунка двора.', camera: angry,
+      text: 'Я сам шёл к участковому.', camera: boxer },
+    { id: 'realization', label: 'Даже туда не пускали', duration: 3900, speechDelay: 100,
+      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'Но даже туда меня не хотели пускать.', camera: boxer },
+    { id: 'flash', label: 'Принято решение', duration: 120, speaker: '', text: '',
+      image: ready, imageAlt: 'Боксёр поднял кулаки перед растерянным Рабочим. Переход через вспышку.', camera: wide,
       flash: true, sounds: [{ at: 0, sound: 'impact' }] },
-    { id: 'inevitable', label: 'ДРАКА НЕИЗБЕЖНА', duration: 3200, speechDelay: 100,
-      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'ДРАКА НЕИЗБЕЖНА!', camera: angry,
-      shots: [
-        { at: 0, image: ready, imageAlt: 'Злое лицо Боксёра крупно, кадрирование рисунка с боевой стойкой во дворе.', camera: angry },
-        { at: 200, image: ready, imageAlt: 'Во время «ДРАКА НЕИЗБЕЖНА» камера отъезжает от лица, раскрывая кулаки Боксёра и растерянного Рабочего с лопатой.', camera: angry, cameraEnd: wide },
-        { at: 1600, image: ready, imageAlt: 'Общий план: Боксёр первым поднял кулаки, Рабочий не нападает и стоит на сухом покрытии.', camera: wide },
-      ] },
+    { id: 'inevitable', label: 'Придётся подвинуться', duration: 2800, speechDelay: 100,
+      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'Придётся подвинуться.', camera: wide,
+      image: ready, imageAlt: 'Общий план: Боксёр в боевой стойке, Рабочий с лопатой стоит на сухом покрытии и не нападает.' },
     { id: 'fight', label: 'Боксёр против Рабочего', duration: 2500,
       speaker: '', text: '', camera: wide, image: ready,
       imageAlt: 'Боксёр в боевой стойке перед растерянным Рабочим. Бой ещё не начался.', fight: true },

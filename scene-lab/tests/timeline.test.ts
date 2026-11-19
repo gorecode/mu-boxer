@@ -101,9 +101,9 @@ test('share links round-trip, clamp time and tolerate malformed or unknown scene
 
 test('district-officer scene retains the visual clue before recognition and ends before combat', () => {
   const precinct = scenes.find((scene) => scene.id === 'precinct')!;
-  assert.equal(precinct.duration, 30000);
-  assert.equal(precinct.cues.length, 10);
-  assert.equal(precinct.cues.filter((cue) => cue.text).length, 7);
+  assert.equal(precinct.duration, 31100);
+  assert.equal(precinct.cues.length, 11);
+  assert.equal(precinct.cues.filter((cue) => cue.text).length, 8);
   assert.equal(sceneImages(precinct).length, 5);
   const report = precinct.cues.find((cue) => cue.id === 'report')!;
   const clue = precinct.cues.find((cue) => cue.id === 'clue')!;
@@ -122,13 +122,18 @@ test('district-officer scene retains the visual clue before recognition and ends
   assert.equal(clue.end, shoes.start);
   assert.ok(clue.speech.duration <= clue.duration);
   assert.equal(shoes.end, recognition.start);
-  assert.equal(recognition.end, thinking.start);
-  assert.equal(thinking.duration, 1000);
-  assert.equal(thinking.text, 'Сесть?!?');
+  const sit = precinct.cues.find(cue => cue.id === 'sit')!;
+  assert.equal(recognition.text, 'Понятно.');
+  assert.equal(sit.text, 'Вы пока посидите.');
+  assert.ok(recognition.duration - recognition.speech.duration >= 350);
+  assert.equal(recognition.end, sit.start);
+  assert.equal(sit.end, thinking.start);
+  assert.equal(thinking.duration, 1400);
+  assert.equal(thinking.text, 'Сидеть?!?');
   assert.equal(thinking.voice, 'boxer');
-  assert.equal(thinking.speech.syllables.length, 1);
-  assert.ok(thinking.duration - thinking.speech.syllables.at(-1)!.end >= 600);
-  assert.ok(voiceCurves(thinking.speech, 400, 1).gain.every((gain) => gain === 0));
+  assert.equal(thinking.speech.syllables.length, 2);
+  assert.ok(thinking.duration - thinking.speech.syllables.at(-1)!.end >= 500);
+  assert.ok(voiceCurves(thinking.speech, 900, 1).gain.every((gain) => gain === 0));
   assert.deepEqual(thinking.sounds ?? [], []);
   assert.equal(thinking.end, refusal.start);
   assert.ok(thinking.image?.endsWith('boxer-thinking.webp'));

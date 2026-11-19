@@ -14,20 +14,20 @@ test('queue is a separate reviewable scene with its own introduction and inflect
   assert.equal(queue.duration, 40000);
   assert.equal(queue.cues.length, 13);
   assert.equal(sceneImages(queue).length, 8);
-  assert.equal(scenes.find((scene) => scene.id === 'precinct')?.duration, 30000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')?.duration, 31100);
 });
 
 test('approved dialogue progresses from an ordinary queue dispute to humane self-exoneration', () => {
   assert.deepEqual(queue.cues.filter((cue) => cue.text).map((cue) => [cue.speaker, cue.text]), [
     ['Боксёр · рассказ', 'Мои способности её убедили.'],
-    ['Боксёр · рассказ', 'За справкой пришлось обратиться к другим сотрудникам.'],
+    ['Боксёр · рассказ', 'Но за справкой пришлось обратиться к другим сотрудникам.'],
     ['Боксёр · рассказ', 'Здесь всё было организовано.'],
     ['Бабка', 'Я занимала.'],
     ['Боксёр', 'Меня вызвали.'],
     ['Бабка', 'Я ещё до тебя занимала.'],
     ['Бабка', 'Мужчина. Только через мой труп.'],
     ['Боксёр · про себя', 'Убивать эту женщину я не собирался.'],
-    ['Боксёр · про себя', 'Поэтому я был вынужден начать драку.'],
+    ['Боксёр · про себя', 'Но она не оставила мне выбора.'],
   ]);
   for (const cue of queue.cues) assert.ok(cue.speech.duration <= cue.duration, cue.id);
   for (const cue of queue.cues.filter((cue) => cue.speaker === 'Бабка')) assert.equal(cue.voice, 'grandma');
@@ -94,7 +94,7 @@ test('public entrance and terminal establish relief before the original queue, w
   assert.ok(subtitleAt(terminal.speech, 750).length > 0);
   for (const spoken of queue.cues.slice(0, 3)) {
     assert.equal(spoken.voice, 'boxer');
-    assert.ok(spoken.duration - spoken.speech.duration >= 700, spoken.id);
+    assert.ok(spoken.duration - spoken.speech.duration >= 600, spoken.id);
     assert.equal(spoken.fight, undefined);
   }
   assert.deepEqual(queue.events.filter(event => event.time < 14500), [

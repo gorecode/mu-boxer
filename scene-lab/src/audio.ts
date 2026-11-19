@@ -109,6 +109,13 @@ export class SceneAudio {
       return;
     }
     if (sound === 'ringback') { this.tone(425, 0.45, 0.065); return; }
+    if (sound === 'siren') {
+      for (let cycle = 0; cycle < 4; cycle++) {
+        this.tone(600, 0.4, 0.075, 'triangle', cycle * 0.8, 1050);
+        this.tone(1050, 0.4, 0.075, 'triangle', cycle * 0.8 + 0.4, 600);
+      }
+      return;
+    }
     if (sound === 'ring') {
       for (const delay of [0, 0.12, 0.24, 0.36, 0.48, 0.6]) {
         this.tone(740, 0.09, 0.075, 'square', delay);

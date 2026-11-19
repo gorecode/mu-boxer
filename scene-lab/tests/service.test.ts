@@ -42,6 +42,7 @@ test('the witness question reveals the aftermath during speech and holds after b
 });
 
 test('reading, processing and calm dialogue keep independent pauses before the mistaken demonstration', () => {
+  assert.equal(cue('documents').text, 'Мне справку взять.');
   assert.equal(cue('staff').speechDelay, 500);
   assert.equal(subtitleAt(cue('staff').speech, 599), '');
   assert.ok(subtitleAt(cue('staff').speech, 750).length > 0);
