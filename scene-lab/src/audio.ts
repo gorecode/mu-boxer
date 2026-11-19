@@ -108,6 +108,7 @@ export class SceneAudio {
       this.tone(1244, 0.18, 0.07, 'sine', 0.17);
       return;
     }
+    if (sound === 'ringback') { this.tone(425, 0.45, 0.065); return; }
     if (sound === 'ring') {
       for (const delay of [0, 0.12, 0.24, 0.36, 0.48, 0.6]) {
         this.tone(740, 0.09, 0.075, 'square', delay);

@@ -1,11 +1,14 @@
 import './style.css';
 import { scenes } from './scenes.ts';
 import { cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
+import { chapterAt, compileFilm } from './film.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
 import { subtitleAt } from './speech.ts';
 
-const initial = readSceneLink(location.hash, scenes);
+const film = compileFilm(scenes);
+const viewingScenes = [...scenes, film.scene];
+const initial = readSceneLink(location.hash, viewingScenes);
 let timeline = new Timeline(initial.scene);
 timeline.seek(initial.time);
 let started = false;
@@ -15,6 +18,7 @@ let previous = performance.now();
 let lastCue = '';
 let audioGeneration = 0;
 let imageGeneration = 0;
+let lastChapter = '';
 let speechKey = '';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -76,7 +80,9 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       </section>
       <aside class="review-panel" aria-label="Инструменты просмотра">
         <div class="panel-header"><h2>Монтажный лист</h2><span id="cue-count"></span></div>
-        <label class="field-label" for="scene-select">СЦЕНА</label><select id="scene-select"></select>
+        <label class="field-label" for="mode-select">РЕЖИМ</label>
+        <select id="mode-select"><option value="scene">Отдельная сцена</option><option value="film">Игрофильм · всё подряд</option></select>
+        <label class="field-label" id="scene-label" for="scene-select">СЦЕНА</label><select id="scene-select"></select>
         <div class="review-settings"><label for="speed">Скорость</label><select id="speed"><option value="0.75">0,75×</option><option value="1" selected>1×</option><option value="1.25">1,25×</option><option value="1.5">1,5×</option><option value="2">2×</option></select></div>
         <ol class="cue-list" id="cues"></ol>
         <div class="panel-foot"><span class="red-dot"></span> Любой кадр можно пересмотреть отдельно.</div>
@@ -135,6 +141,9 @@ function populate(): void {
   startButton.textContent = 'Загрузка иллюстраций…';
   const generation = ++imageGeneration;
   lastCue = '';
+  lastChapter = '';
+  element<HTMLSelectElement>('mode-select').value = scene.id === 'film' ? 'film' : 'scene';
+  element('scene-label').textContent = scene.id === 'film' ? 'ГЛАВА' : 'СЦЕНА';
   render();
   void Promise.all(sceneImages(scene).map((source) => new Promise<void>((resolve, reject) => {
     const image = new Image();
@@ -146,12 +155,23 @@ function populate(): void {
     ready = true;
     startButton.disabled = false;
     playButton.disabled = false;
-    startButton.textContent = timeline.time > 0 ? 'Смотреть с этого момента' : 'Смотреть сцену';
+    startButton.textContent = timeline.time > 0 ? 'Смотреть с этого момента' : scene.id === 'film' ? 'Смотреть игрофильм' : 'Смотреть сцену';
   }).catch(() => { if (generation === imageGeneration) imageFailed(); });
 }
 
 function render(): void {
   const scene = timeline.scene;
+  const chapter = scene.id === 'film' ? chapterAt(film, timeline.time) : undefined;
+  const source = chapter?.scene ?? scene;
+  if (lastChapter !== source.id) {
+    lastChapter = source.id;
+    element('chapter').textContent = chapter ? `ИГРОФИЛЬМ · ${source.subtitle}` : source.subtitle;
+    element('title').textContent = source.title;
+    element('opponent').textContent = source.opponent.toUpperCase();
+    element('stage').classList.toggle('hard-cuts', !!source.hardCuts);
+    element<HTMLSelectElement>('scene-select').value = source.id;
+  }
+  element<HTMLButtonElement>('resolve').hidden = !!chapter || !element('fight-note').hidden;
   const cue = cueAt(scene, timeline.time);
   const index = scene.cues.indexOf(cue);
   if (lastCue !== cue.id) {
@@ -292,16 +312,29 @@ element('resolve').addEventListener('click', () => {
 const select = element<HTMLSelectElement>('scene-select');
 for (const scene of scenes) select.add(new Option(scene.title, scene.id));
 select.value = timeline.scene.id;
-select.addEventListener('change', () => {
+function switchScene(scene: typeof initial.scene, time = 0): void {
   pause();
-  timeline = new Timeline(scenes.find((scene) => scene.id === select.value)!);
+  timeline = new Timeline(scene);
   timeline.setRate(Number(element<HTMLSelectElement>('speed').value));
+  timeline.seek(time);
   started = false;
-  history.replaceState(null, '', sceneLink(timeline.scene, 0));
+  history.replaceState(null, '', sceneLink(scene, time));
   populate();
+}
+select.addEventListener('change', () => {
+  if (timeline.scene.id === 'film') {
+    seek(film.chapters.find(chapter => chapter.scene.id === select.value)!.start);
+  } else switchScene(scenes.find(scene => scene.id === select.value)!);
+});
+element<HTMLSelectElement>('mode-select').addEventListener('change', (event) => {
+  if ((event.target as HTMLSelectElement).value === 'film') switchScene(film.scene);
+  else {
+    const chapter = chapterAt(film, timeline.time);
+    switchScene(chapter.scene, timeline.time - chapter.start);
+  }
 });
 window.addEventListener('hashchange', () => {
-  const target = readSceneLink(location.hash, scenes);
+  const target = readSceneLink(location.hash, viewingScenes);
   if (target.scene.id !== timeline.scene.id) {
     pause(); timeline = new Timeline(target.scene);
     timeline.setRate(Number(element<HTMLSelectElement>('speed').value));
