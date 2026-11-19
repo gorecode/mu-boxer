@@ -1,6 +1,7 @@
 import { compileScene, type Scene } from './scene.ts';
 import { queue } from './queue-scene.ts';
 import { intro } from './intro-scene.ts';
+import { prologue } from './prologue-scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
@@ -15,9 +16,9 @@ const precinct: Scene = {
       text: 'Мне справку, что я не судимый.' },
     { id: 'call', label: 'Звонок', duration: 2000, speaker: '', camera: wide, text: '',
       sounds: [{ at: 100, sound: 'ring' }, { at: 1750, sound: 'receiver' }] },
-    { id: 'report', label: 'Дворника избили?', duration: 4000, speaker: 'Участковый · в трубку', voice: 'officer',
+    { id: 'report', label: 'Рабочего избили?', duration: 4000, speaker: 'Участковый · в трубку', voice: 'officer',
       image: art('precinct'), imageAlt: 'Участковый слушает трубку и подозрительно смотрит на посетителя.',
-      camera: { scale: 1.6, x: 85, y: 35 }, text: 'Дворника избили? Приметы?' },
+      camera: { scale: 1.6, x: 85, y: 35 }, text: 'Рабочего избили? Приметы?' },
     { id: 'clue', label: 'Ноги в бетоне?', duration: 1800, speaker: 'Участковый · в трубку', voice: 'officer',
       image: art('precinct'), imageAlt: 'Участковый уточняет приметы, слушая телефонную трубку.',
       camera: { scale: 1.6, x: 85, y: 35 }, text: 'Ноги в бетоне?' },
@@ -37,4 +38,4 @@ const precinct: Scene = {
   ],
 };
 
-export const scenes = [compileScene(intro), compileScene(precinct), compileScene(queue)];
+export const scenes = [compileScene(intro), compileScene(prologue), compileScene(precinct), compileScene(queue)];

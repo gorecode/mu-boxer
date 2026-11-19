@@ -10,7 +10,7 @@ const named = (id: string) => intro.cues.find((cue) => cue.id === id)!;
 
 test('the narrated intro opens by default and retains links to the other scenes', () => {
   assert.equal(intro.id, 'intro');
-  assert.equal(scenes.length, 3);
+  assert.equal(scenes.length, 4);
   assert.deepEqual(readSceneLink('', scenes), { scene: intro, time: 0 });
   assert.deepEqual(readSceneLink('#scene=unknown&t=30', scenes), { scene: intro, time: 0 });
   assert.equal(readSceneLink('#scene=intro&t=NaN', scenes).time, 0);
@@ -133,7 +133,8 @@ test('camera holds and movements remain deterministic at pause, seek, reduced mo
   assert.equal(player.playing, false);
   assert.deepEqual(visualAt(intro, intro.duration - 1000).camera, { scale: 1, x: 50, y: 50 });
   assert.deepEqual(visualAt(intro, intro.duration).camera, { scale: 1, x: 50, y: 50 });
-  assert.deepEqual(visualAt(scenes[1], 0).camera, scenes[1].cues[0].camera);
+  const precinct = scenes.find((scene) => scene.id === 'precinct')!;
+  assert.deepEqual(visualAt(precinct, 0).camera, precinct.cues[0].camera);
 });
 
 test('invalid plan ordering, timing, assets and camera endpoints fail before playback', () => {
