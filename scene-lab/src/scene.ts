@@ -1,6 +1,14 @@
 import { planSpeech, type SpeechPlan, type Voice } from './speech.ts';
 
 export type Sound = 'ring' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime';
+export interface Camera { scale: number; x: number; y: number }
+interface Shot {
+  at: number;
+  image: string;
+  imageAlt: string;
+  camera: Camera;
+  cameraEnd?: Camera;
+}
 export interface Cue {
   id: string;
   label: string;
@@ -10,7 +18,8 @@ export interface Cue {
   voice?: Voice;
   image?: string;
   imageAlt?: string;
-  camera: { scale: number; x: number; y: number };
+  camera: Camera;
+  shots?: Shot[];
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
   titleCard?: { eyebrow: string; title: string };
@@ -43,9 +52,17 @@ export function compileScene(scene: Scene): CompiledScene {
     ids.add(cue.id);
     if (cue.titleCard && (!cue.titleCard.title.trim() || cue.fight)) throw new Error('Неверный титр');
     if (!Number.isFinite(cue.duration) || cue.duration <= 0) throw new Error('Неверная длительность кадра');
-    const { scale, x, y } = cue.camera;
-    if (![scale, x, y].every(Number.isFinite) || scale < 1 || scale > 5 || x < 0 || x > 100 || y < 0 || y > 100) {
-      throw new Error('Неверное кадрирование');
+    validateCamera(cue.camera);
+    if (cue.shots) {
+      if (!cue.shots.length || cue.shots[0].at !== 0) throw new Error('Планы должны начинаться с нуля');
+      for (const [index, shot] of cue.shots.entries()) {
+        if (!Number.isFinite(shot.at) || shot.at < 0 || shot.at >= cue.duration ||
+          (index > 0 && shot.at <= cue.shots[index - 1].at) || !shot.image.trim() || !shot.imageAlt.trim()) {
+          throw new Error('Неверный план внутри кадра');
+        }
+        validateCamera(shot.camera);
+        if (shot.cameraEnd) validateCamera(shot.cameraEnd);
+      }
     }
     for (const event of cue.sounds ?? []) {
       if (!Number.isFinite(event.at) || event.at < 0 || event.at >= cue.duration) throw new Error('Звук вне кадра');
@@ -61,12 +78,39 @@ export function compileScene(scene: Scene): CompiledScene {
   ).sort((a, b) => a.time - b.time) };
 }
 
+function validateCamera({ scale, x, y }: Camera): void {
+  if (![scale, x, y].every(Number.isFinite) || scale < 1 || scale > 5 || x < 0 || x > 100 || y < 0 || y > 100) {
+    throw new Error('Неверное кадрирование');
+  }
+}
+
 export function cueAt(scene: CompiledScene, time: number): TimedCue {
   return scene.cues.find((cue) => time < cue.end) ?? scene.cues[scene.cues.length - 1];
 }
 
+export function visualAt(scene: CompiledScene, time: number, reducedMotion = false): { image: string; imageAlt: string; camera: Camera } {
+  const cue = cueAt(scene, time);
+  const elapsed = Math.max(0, Math.min(cue.duration, time - cue.start));
+  const shots = cue.shots;
+  const index = shots?.findLastIndex((shot) => shot.at <= elapsed) ?? -1;
+  const shot = shots?.[index];
+  const camera = shot?.camera ?? cue.camera;
+  const end = shot?.cameraEnd;
+  if (!shot || !end || reducedMotion) {
+    return { image: shot?.image ?? cue.image ?? scene.image, imageAlt: shot?.imageAlt ?? cue.imageAlt ?? scene.imageAlt, camera };
+  }
+  const duration = (shots?.[index + 1]?.at ?? cue.duration) - shot.at;
+  const progress = Math.min(1, (elapsed - shot.at) / duration);
+  const ease = progress * progress * (3 - 2 * progress);
+  return { image: shot.image, imageAlt: shot.imageAlt, camera: {
+    scale: camera.scale + (end.scale - camera.scale) * ease,
+    x: camera.x + (end.x - camera.x) * ease,
+    y: camera.y + (end.y - camera.y) * ease,
+  } };
+}
+
 export function sceneImages(scene: CompiledScene): string[] {
-  return [...new Set([scene.image, ...scene.cues.map((cue) => cue.image ?? scene.image)])];
+  return [...new Set([scene.image, ...scene.cues.flatMap((cue) => [cue.image ?? scene.image, ...(cue.shots ?? []).map((shot) => shot.image)])])];
 }
 
 export function sceneLink(scene: CompiledScene, time: number): string {

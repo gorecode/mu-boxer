@@ -1,162 +1,138 @@
 import { expect, test } from '@playwright/test';
 
-test('the serial recap opens by gesture, types dialogue, pauses, finishes and replays its opening', async ({ page }) => {
+test('the illustrated narration waits for a gesture, moves with time, pauses and replays', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'AudioContext', { value: class { constructor() { throw new Error('No audio before gesture'); } } });
   });
   await page.clock.install({ time: new Date('2026-01-01T08:00:00Z') });
   await page.goto('./');
   await expect(page.locator('#scene-select')).toHaveValue('intro');
-  await expect(page.locator('#story-intro')).toHaveText('Ранее в\n«Мести боксёра»');
+  await expect(page.locator('#story-intro')).toHaveText('Моё прошлое');
   await expect(page.locator('#story-duration')).toContainText('41.1 с');
   await expect(page.locator('#start')).toBeEnabled();
   await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
   await page.clock.runFor(500);
   await expect(page.locator('#scrub')).toHaveValue('0');
   await expect(page.locator('#subtitle')).toBeHidden();
-  await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#scene-setting')).toBeHidden();
   await expect(page.locator('#status')).not.toContainText('Звук недоступен');
   await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
   await page.locator('#start').click();
-  await expect(page.locator('#title-card-title')).toHaveText('РАНЕЕ В «МЕСТИ БОКСЁРА»');
-  await expect(page.locator('#title-card')).toBeVisible();
-  await page.clock.runFor(2200);
-  await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#scene-setting')).toBeVisible();
+  const camera = await page.locator('#art').getAttribute('style');
+  await page.clock.runFor(700);
+  await expect(page.locator('#speaker')).toHaveText('Боксёр · рассказ');
   const partial = await page.locator('#caption-typed').textContent();
   expect(partial!.length).toBeGreaterThan(0);
-  expect(partial!.length).toBeLessThan('Твоего друга убили из этого пистолета.'.length);
+  expect(partial!.length).toBeLessThan('Когда-то убили моего лучшего друга.'.length);
+  expect(await page.locator('#art').getAttribute('style')).not.toBe(camera);
   await page.getByRole('button', { name: 'Пауза', exact: true }).click();
   const paused = await page.locator('#scrub').inputValue();
+  const pausedCamera = await page.locator('#art').getAttribute('style');
   await page.clock.runFor(1000);
   await expect(page.locator('#scrub')).toHaveValue(paused);
+  await expect(page.locator('#art')).toHaveAttribute('style', pausedCamera!);
   await expect(page.locator('#caption-typed')).toHaveText(partial!);
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
   await page.clock.runFor(42000);
   await expect(page.locator('#scrub')).toHaveValue('41100');
-  await expect(page.locator('#title-card')).toBeVisible();
-  await expect(page.locator('#title-card-title')).toHaveText('МЕСТЬ БОКСЁРА II');
-  await expect(page.locator('#scene-setting')).toBeHidden();
-  await expect(page.locator('#fight')).toBeHidden();
-  await expect(page.locator('#paused-mark')).toBeHidden();
-  await expect(page.locator('#subtitle')).toBeHidden();
-  await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
-  await page.clock.runFor(200);
-  await expect(page.locator('#title-card-title')).toHaveText('РАНЕЕ В «МЕСТИ БОКСЁРА»');
-  expect(Number(await page.locator('#scrub').inputValue())).toBeLessThan(1000);
-  await page.clock.runFor(2000);
+  await expect(page.locator('#art')).toHaveAttribute('src', /intro-gym-v3.webp$/);
+  await expect(page.locator('#caption-typed')).toHaveText('Меня оправдали. Я снова стал заниматься боксом.');
   await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#speaker')).toHaveText('Милиционер');
-  await expect(page.locator('#status')).not.toContainText('Звук недоступен');
+  await expect(page.locator('#fight')).toBeHidden();
+  await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+  await page.clock.runFor(700);
+  expect(Number(await page.locator('#scrub').inputValue())).toBeLessThan(1000);
+  await expect(page.locator('#speaker')).toHaveText('Боксёр · рассказ');
 });
 
-test('review shows the accusation, goal, aftermath and verdict in their actual locations', async ({ page }) => {
+test('seeking changes plans on the approved words while retaining the same ongoing caption', async ({ page }) => {
   await page.goto('./#scene=intro&t=0');
   await expect(page.locator('#start')).toBeEnabled();
   const moments = [
-    [6399, 'intro-arrest', 'МЕСТО УБИЙСТВА', 'Твоего друга убили из этого пистолета.'],
-    [11599, 'intro-arrest', 'МЕСТО УБИЙСТВА', 'А нашли в твоём кармане.'],
-    [14799, 'intro-cell-v2', 'ТЮРЬМА', 'Я найду настоящего убийцу.'],
-    [15899, 'intro-escape-v2', 'ПОБЕГ', ''],
-    [17499, 'intro-controller', 'ТРОЛЛЕЙБУС', 'Ваш билет.'],
-    [20499, 'intro-controller', 'ТРОЛЛЕЙБУС', 'Я был вынужден разобраться.'],
-    [21299, 'intro-controller-after-v2', 'ТРОЛЛЕЙБУС', ''],
-    [24099, 'intro-confrontation-v2', 'БИЛЬЯРДНАЯ', 'Ты убил моего друга.'],
-    [24899, 'intro-billiards', 'БИЛЬЯРДНАЯ', ''],
-    [27899, 'intro-court-v2', 'СУД', 'Вы признаны невиновным.'],
+    [3600, 'intro-arrest'], [6835, 'intro-arrest'], [9800, 'intro-court-v2'],
+    [11340, 'intro-cell-v3'], [14200, 'intro-escape-v3'], [15475, 'intro-road-v3'],
+    [19300, 'intro-driver-v3'], [20905, 'intro-biker-v3'], [21995, 'intro-woman-v3'],
+    [24600, 'boxer-angry'], [28200, 'intro-woman-after-v3'], [30100, 'intro-controller-v3'],
+    [32895, 'intro-billiards-v3'], [36200, 'intro-acquittal-v3'], [37750, 'intro-gym-v3'],
   ] as const;
-  expect(await page.locator('#art').evaluate((image) => getComputedStyle(image).transitionDuration)).toBe('0s');
-  for (const [time, image, setting, text] of moments) {
+  for (const [time, image] of moments) {
     await page.locator('#scrub').fill(String(time));
     await expect(page.locator('#art')).toHaveAttribute('src', new RegExp(`${image}.webp$`));
-    await expect(page.locator('#caption-typed')).toHaveText(text);
-    await expect(page.locator('#scene-setting')).toBeVisible();
-    await expect(page.locator('#scene-setting')).toHaveText(`РАНЕЕ · ${setting}`);
+    await expect(page.locator('#speaker')).toHaveText('Боксёр · рассказ');
+    await expect(page.locator('#title-card')).toBeHidden();
+    await expect(page.locator('#scene-setting')).toBeHidden();
     expect(await page.locator('#art').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
   }
-  await page.locator('#scrub').fill('27900');
-  await expect(page.locator('#title-card')).toBeVisible();
-  await expect(page.locator('#title-card-title')).toHaveText('СЕЙЧАС');
-  await expect(page.locator('#scene-setting')).toBeHidden();
-  await page.locator('#scrub').fill('34499');
-  await expect(page.locator('#caption-typed')).toHaveText('Меня же оправдали.');
-  await expect(page.locator('#scene-setting')).toHaveText('СЕЙЧАС · РЕГИСТРАЦИЯ НА ТУРНИР');
-  await page.locator('#scrub').fill('36300');
-  await expect(page.locator('#subtitle')).toBeHidden();
-  await page.locator('#scrub').fill('38899');
-  await expect(page.locator('#caption-typed')).toHaveText('Турнир завтра.');
-  await expect(page.locator('#title-card')).toBeHidden();
-  await page.locator('#scrub').fill('38900');
-  await expect(page.locator('#title-card')).toBeVisible();
-  await expect(page.locator('#title-card-eyebrow')).toHaveText('Нужна только справка.');
-  await expect(page.locator('#scene-setting')).toBeHidden();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.locator('#scrub').fill('3965');
+  const gun = await page.locator('#art').evaluate((img) => img.style.transformOrigin);
+  await page.locator('#scrub').fill('6835');
+  expect(await page.locator('#art').evaluate((img) => img.style.transformOrigin)).not.toBe(gun);
+  await expect(page.locator('#caption-typed')).toContainText('нашли у меня в кармане.');
+  await expect(page.locator('[data-cue=pistol]')).toHaveAttribute('aria-current', 'step');
+  await page.locator('#scrub').fill('28199');
+  await expect(page.locator('#caption-typed')).toHaveText('Я никому не хотел причинять зла.');
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
+  await page.locator('#scrub').fill('28200');
+  await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-after-v3.webp$/);
+  await expect(page.locator('#caption-typed')).toHaveText('');
 });
 
-test('linked titles wait for a gesture and location captions clear on cards and other scenes', async ({ page }) => {
-  await page.goto('./#scene=intro&t=38.9');
-  await expect(page.locator('#scrub')).toHaveValue('38900');
-  await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#scene-setting')).toBeHidden();
+test('linked moments restore camera position and switching scenes clears the narration', async ({ page }) => {
+  await page.goto('./#scene=intro&t=32');
+  await expect(page.locator('#scrub')).toHaveValue('32000');
   await expect(page.locator('#start')).toBeEnabled();
-  await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
-  await page.locator('#start').click();
-  await expect(page.locator('#title-card')).toBeVisible();
-  await page.getByRole('button', { name: 'Предыдущий кадр', exact: true }).click();
-  await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#scene-setting')).toBeVisible();
-  await expect(page.locator('#scrub')).toHaveValue('37000');
+  await expect(page.locator('#subtitle')).toBeHidden();
+  const camera = await page.locator('#art').getAttribute('style');
   await page.getByRole('button', { name: 'Ссылка на этот момент' }).click();
-  await expect(page).toHaveURL(/#scene=intro&t=37.0$/);
   await page.reload();
-  await expect(page.locator('#scrub')).toHaveValue('37000');
+  await expect(page.locator('#start')).toBeEnabled();
+  await expect(page.locator('#art')).toHaveAttribute('style', camera!);
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('precinct');
-  await expect(page.locator('#story-intro')).toHaveText('Мне только\nсправку получить.');
-  await expect(page.locator('#stage')).not.toHaveClass(/hard-cuts/);
   await page.locator('[data-cue=fight]').click();
   await expect(page.locator('#fight')).toBeVisible();
-  await expect(page.locator('#title-card')).toBeHidden();
-  await expect(page.locator('#scene-setting')).toBeHidden();
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('intro');
   await expect(page.locator('#scrub')).toHaveValue('0');
-  await expect(page.locator('#title-card')).toBeHidden();
   await expect(page.locator('#fight')).toBeHidden();
-  await expect(page.locator('#story-intro')).toBeVisible();
-  await page.locator('[data-cue=murder]').click();
-  await expect(page.locator('#scene-setting')).toHaveText('РАНЕЕ · МЕСТО УБИЙСТВА');
-  await page.locator('[data-cue=previously]').click();
-  await expect(page.locator('#scene-setting')).toBeHidden();
+  await expect(page.locator('#story-intro')).toHaveText('Моё прошлое');
+  await page.locator('[data-cue=no-harm]').click();
+  await expect(page.locator('#speaker')).toHaveText('Боксёр · рассказ');
+  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
 });
 
-test('a missing courtroom panel blocks playback and switching scenes recovers', async ({ page }) => {
-  await page.route('**/art/intro-court-v2.webp', (route) => route.abort());
+test('an image used only by a later internal plan blocks playback when missing and switching recovers', async ({ page }) => {
+  await page.route('**/art/intro-road-v3.webp', (route) => route.abort());
   await page.goto('./#scene=unknown&t=35');
   await expect(page.locator('#scene-select')).toHaveValue('intro');
-  await expect(page.locator('#scrub')).toHaveValue('0');
   await expect(page.locator('#status')).toContainText('Не удалось загрузить иллюстрацию');
   await expect(page.locator('#start')).toBeDisabled();
   await expect(page.locator('#play')).toBeDisabled();
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('queue');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#status')).not.toContainText('Не удалось загрузить иллюстрацию');
-  await expect(page.locator('#scene-setting')).toBeHidden();
-  await expect(page.locator('#art')).toHaveAttribute('src', /queue-ticket.webp$/);
 });
 
-test('recap frames and playback controls fit narrow screens without horizontal scrolling', async ({ page }) => {
+test('reduced motion freezes movement but retains word-driven illustration cuts', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./#scene=intro&t=0');
+  await expect(page.locator('#start')).toBeEnabled();
+  const initial = await page.locator('#art').getAttribute('style');
+  await page.locator('#scrub').fill('1800');
+  await expect(page.locator('#art')).toHaveAttribute('style', initial!);
+  await page.locator('#scrub').fill('15475');
+  await expect(page.locator('#art')).toHaveAttribute('src', /intro-road-v3.webp$/);
+  expect(await page.locator('#art').evaluate((img) => getComputedStyle(img).transitionDuration)).toBe('0s');
+});
+
+test('narration and controls fit narrow screens', async ({ page }) => {
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto('./#scene=intro&t=24.9');
+    await page.goto('./#scene=intro&t=35.9');
     await expect(page.locator('#start')).toBeEnabled();
-    const layout = await page.evaluate(() => ({
-      scroll: document.documentElement.scrollWidth,
-      client: document.documentElement.clientWidth,
-      stage: document.querySelector('#stage')!.getBoundingClientRect().right,
-      controls: document.querySelector('.sound-controls')!.getBoundingClientRect().right,
-    }));
-    expect(layout.scroll).toBeLessThanOrEqual(layout.client);
-    expect(layout.stage).toBeLessThanOrEqual(layout.client);
-    expect(layout.controls).toBeLessThanOrEqual(layout.client);
+    await page.locator('#scrub').fill('35900');
+    await expect(page.locator('#caption-typed')).toContainText('подставил.');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    const stage = await page.locator('#stage').boundingBox();
+    const subtitle = await page.locator('#subtitle').boundingBox();
+    expect(subtitle!.x).toBeGreaterThanOrEqual(stage!.x);
+    expect(subtitle!.x + subtitle!.width).toBeLessThanOrEqual(stage!.x + stage!.width);
   }
 });

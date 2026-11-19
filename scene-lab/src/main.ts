@@ -1,6 +1,6 @@
 import './style.css';
 import { scenes } from './scenes.ts';
-import { cueAt, readSceneLink, sceneLink, sceneImages } from './scene.ts';
+import { cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
 import { subtitleAt } from './speech.ts';
@@ -16,6 +16,7 @@ let lastCue = '';
 let audioGeneration = 0;
 let imageGeneration = 0;
 let speechKey = '';
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="masthead">
@@ -154,10 +155,6 @@ function render(): void {
   const index = scene.cues.indexOf(cue);
   if (lastCue !== cue.id) {
     lastCue = cue.id;
-    art.src = cue.image ?? scene.image;
-    art.alt = cue.imageAlt ?? scene.imageAlt;
-    art.style.transform = `scale(${cue.camera.scale})`;
-    art.style.transformOrigin = `${cue.camera.x}% ${cue.camera.y}%`;
     element('speaker').textContent = cue.speaker;
     element('caption-layout').textContent = cue.text;
     element('caption').setAttribute('aria-label', cue.text);
@@ -170,6 +167,11 @@ function render(): void {
       else button.removeAttribute('aria-current');
     }
   }
+  const visual = visualAt(scene, timeline.time, reducedMotion.matches);
+  if (art.getAttribute('src') !== visual.image) art.src = visual.image;
+  art.alt = visual.imageAlt;
+  art.style.transform = `scale(${visual.camera.scale})`;
+  art.style.transformOrigin = `${visual.camera.x}% ${visual.camera.y}%`;
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
   element('subtitle').hidden = !started || !cue.text;
