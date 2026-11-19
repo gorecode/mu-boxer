@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-test('worker starts only by gesture, pauses, ends with the right opponent and replays', async ({ page }) => {
+test('worker starts by gesture, pauses, ends with the right opponent and replays', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-01-01T08:00:00Z') });
   await page.goto('./#scene=worker&t=0');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#scene-select')).toHaveValue('worker');
   await expect(page.locator('#title')).toHaveText('А вот же лента');
-  await expect(page.locator('#story-duration')).toContainText('23.8 с');
+  await expect(page.locator('#story-duration')).toContainText('23.12 с');
   await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
   await page.clock.runFor(1000);
   await expect(page.locator('#scrub')).toHaveValue('0');
@@ -25,18 +25,19 @@ test('worker starts only by gesture, pauses, ends with the right opponent and re
   await expect(page.locator('#caption-typed')).toHaveText(partial!);
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
   await page.clock.runFor(24000);
-  await expect(page.locator('#scrub')).toHaveValue('23800');
+  await expect(page.locator('#scrub')).toHaveValue('23120');
   await expect(page.locator('#fight')).toBeVisible();
   await expect(page.locator('#opponent')).toHaveText('РАБОЧЕГО');
   await expect(page.locator('#art')).toHaveAttribute('src', /worker-ready-v2.webp$/);
   await expect(page.locator('#subtitle')).toBeHidden();
+  await expect(page.locator('#scene-flash')).toBeHidden();
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
   await page.clock.runFor(100);
   await expect(page.locator('#fight')).toBeHidden();
   await expect(page.locator('#art')).toHaveAttribute('src', /worker-wide-v2.webp$/);
 });
 
-test('gestures and the stance cut preserve the growing forced-fight caption', async ({ page }) => {
+test('dialogue keeps the full head and the realization pulls back from the same face', async ({ page }) => {
   await page.goto('./#scene=worker&t=0');
   await expect(page.locator('#start')).toBeEnabled();
   for (const [time, text, image] of [
@@ -44,29 +45,66 @@ test('gestures and the stance cut preserve the growing forced-fight caption', as
     ['7400', 'Обходи.', 'worker-wide-v2'],
     ['9300', 'Так вот же дверь.', 'worker-boxer-point-v2'],
     ['11600', 'А вот же лента.', 'worker-tape-v2'],
+    ['15399', 'У меня не было времени обходить.', 'worker-wide-v2'],
+    ['17299', 'И я понял…', 'worker-wide-v2'],
   ]) {
     await page.locator('#scrub').fill(time);
     await expect(page.locator('#caption-typed')).toHaveText(text);
     await expect(page.locator('#art')).toHaveAttribute('src', new RegExp(`${image}.webp$`));
+    if (time === '5900' || time === '9300') {
+      const head = await page.locator('#art').evaluate((image) => {
+        const img = image.getBoundingClientRect(), stage = image.parentElement!.getBoundingClientRect();
+        return { top: img.top + img.height * .04 - stage.top, bottom: img.top + img.height * .24 - stage.top, height: stage.height };
+      });
+      expect(head.top).toBeGreaterThan(head.height * .02);
+      expect(head.bottom).toBeLessThan(head.height * .98);
+    }
   }
-  await page.locator('#scrub').fill('15499');
-  await expect(page.locator('#art')).toHaveAttribute('src', /worker-wide-v2.webp$/);
-  await page.locator('#scrub').fill('15500');
-  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
-  await page.locator('#scrub').fill('18899');
-  await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
-  await expect(page.locator('#caption-typed')).toHaveText('Я БЫЛ ВЫНУЖДЕН…');
-  await page.locator('#scrub').fill('18900');
+  await page.locator('#scrub').fill('17420');
   await expect(page.locator('#art')).toHaveAttribute('src', /worker-ready-v2.webp$/);
-  await expect(page.locator('#caption-typed')).toHaveText('Я БЫЛ ВЫНУЖДЕН…');
-  await expect(page.locator('[data-cue=forced]')).toHaveAttribute('aria-current', 'step');
-  await page.locator('#scrub').fill('20200');
-  await expect(page.locator('#caption-typed')).toHaveText('Я БЫЛ ВЫНУЖДЕН… начать драку.');
+  const close = await page.locator('#art').getAttribute('style');
+  await page.locator('#scrub').fill('18320');
+  const middle = await page.locator('#art').getAttribute('style');
+  expect(middle).not.toBe(close);
+  await expect(page.locator('#caption-typed')).toContainText('ДРАКА');
+  await expect(page.locator('#art')).toHaveAttribute('src', /worker-ready-v2.webp$/);
+  await page.locator('#scrub').fill('19300');
+  await expect(page.locator('#caption-typed')).toHaveText('ДРАКА НЕИЗБЕЖНА!');
+  const full = await page.locator('#art').getAttribute('style');
+  expect(full).not.toBe(middle);
+  await page.locator('#scrub').fill('20619');
+  await expect(page.locator('#art')).toHaveAttribute('style', full!);
   await expect(page.locator('#fight')).toBeHidden();
-  await page.locator('#scrub').fill('21299');
-  await expect(page.locator('#caption-typed')).toHaveText('Я БЫЛ ВЫНУЖДЕН… начать драку.');
-  await page.locator('#scrub').fill('21300');
+  await page.locator('#scrub').fill('20620');
   await expect(page.locator('#fight')).toBeVisible();
+});
+
+test('the short flash only appears while playing its cue and clears on pause, seek and scene switch', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T08:00:00Z') });
+  await page.goto('./#scene=worker&t=17.3');
+  await expect(page.locator('#start')).toBeEnabled();
+  await expect(page.locator('#scene-flash')).toBeHidden();
+  await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
+  await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
+  await page.locator('#start').click();
+  await page.clock.runFor(50);
+  await expect(page.locator('#scene-flash')).toBeVisible();
+  expect(await page.locator('#scene-flash').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 240, 223)');
+  await page.getByRole('button', { name: 'Пауза', exact: true }).click();
+  await expect(page.locator('#scene-flash')).toBeHidden();
+  await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+  await page.clock.runFor(30);
+  await expect(page.locator('#scene-flash')).toBeVisible();
+  await page.clock.runFor(100);
+  await expect(page.locator('#scene-flash')).toBeHidden();
+  await page.locator('#scrub').fill('17300');
+  await expect(page.locator('#scene-flash')).toBeHidden();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+  await page.clock.runFor(50);
+  await expect(page.locator('#scene-flash')).toBeHidden();
+  await page.getByLabel('СЦЕНА', { exact: true }).selectOption('precinct');
+  await expect(page.locator('#scene-flash')).toBeHidden();
 });
 
 test('missing final worker art blocks playback and switching scenes recovers', async ({ page }) => {
@@ -80,27 +118,27 @@ test('missing final worker art blocks playback and switching scenes recovers', a
   await expect(page.locator('#story-intro')).toHaveText('Мне нужна справка');
 });
 
-test('worker links, reduced motion and narrow captions survive seeking and reload', async ({ page }) => {
+test('reduced motion cuts from the same face to the full panel; links and narrow captions survive reload', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('./#scene=worker&t=12.2');
+  await page.goto('./#scene=worker&t=17.62');
   await expect(page.locator('#start')).toBeEnabled();
-  const door = await page.locator('#art').getAttribute('style');
-  await page.locator('#scrub').fill('13000');
-  await expect(page.locator('#art')).toHaveAttribute('style', door!);
-  await page.locator('#scrub').fill('14300');
-  expect(await page.locator('#art').getAttribute('style')).not.toBe(door);
-  await page.locator('#scrub').fill('19200');
+  const close = await page.locator('#art').getAttribute('style');
+  await page.locator('#scrub').fill('18320');
+  await expect(page.locator('#art')).toHaveAttribute('style', close!);
+  await page.locator('#scrub').fill('19020');
+  expect(await page.locator('#art').getAttribute('style')).not.toBe(close);
+  await page.locator('#scrub').fill('18300');
   const text = await page.locator('#caption-typed').textContent();
   await page.getByRole('button', { name: 'Ссылка на этот момент' }).click();
   await page.reload();
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#scene-select')).toHaveValue('worker');
-  await expect(page.locator('#scrub')).toHaveValue('19200');
+  await expect(page.locator('#scrub')).toHaveValue('18300');
   await expect(page.locator('#caption-typed')).toHaveText(text!);
   await expect(page.locator('#art')).toHaveAttribute('src', /worker-ready-v2.webp$/);
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.locator('#scrub').fill('17299');
+    await page.locator('#scrub').fill('15399');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const stage = await page.locator('#stage').boundingBox(), subtitle = await page.locator('#subtitle').boundingBox();
     expect(subtitle!.x).toBeGreaterThanOrEqual(stage!.x);

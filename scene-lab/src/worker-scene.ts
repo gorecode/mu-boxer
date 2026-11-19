@@ -2,12 +2,10 @@ import type { Scene } from './scene.ts';
 
 const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/${name}.webp`;
 const wide = { scale: 1, x: 50, y: 50 };
-const boxer = { scale: 1.45, x: 0, y: 25 };
+const boxer = { scale: 1.45, x: 0, y: 0 };
 const worker = { scale: 1.45, x: 100, y: 25 };
-const door = { scale: 1.35, x: 100, y: 25 };
-const corner = { scale: 1.35, x: 0, y: 25 };
+const angry = { scale: 3.2, x: 12, y: 5 };
 const courtyard = art('worker-wide-v2');
-const angry = art('boxer-angry');
 const ready = art('worker-ready-v2');
 
 export const workerScene: Scene = {
@@ -29,20 +27,20 @@ export const workerScene: Scene = {
     { id: 'tape', label: 'А вот же лента', duration: 2300, speechDelay: 100,
       speaker: 'Рабочий', voice: 'officer', text: 'А вот же лента.', camera: wide,
       image: art('worker-tape-v2'), imageAlt: 'Рабочий деловито показывает на ленту перед Боксёром; никто не нападает.' },
-    { id: 'reason', label: 'Обходить весь район', duration: 5600, speechDelay: 150,
+    { id: 'reason', label: 'Нет времени обходить', duration: 3700, speechDelay: 150,
       speaker: 'Боксёр · про себя', voice: 'boxer',
-      text: 'У меня не было времени обходить весь район. Поэтому…', camera: door,
+      text: 'У меня не было времени обходить.', camera: boxer },
+    { id: 'realization', label: 'И я понял…', duration: 1900, speechDelay: 100,
+      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'И я понял…', camera: boxer },
+    { id: 'flash', label: 'Озарение', duration: 120, speaker: '', text: '',
+      image: ready, imageAlt: 'Короткая вспышка озарения; злое лицо взято из того же рисунка двора.', camera: angry,
+      flash: true, sounds: [{ at: 0, sound: 'impact' }] },
+    { id: 'inevitable', label: 'ДРАКА НЕИЗБЕЖНА', duration: 3200, speechDelay: 100,
+      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'ДРАКА НЕИЗБЕЖНА!', camera: angry,
       shots: [
-        { at: 0, image: courtyard, imageAlt: 'Всего несколько шагов до двери участкового.', camera: door },
-        { at: 500, image: courtyard, imageAlt: 'Камера переводит внимание от близкой двери к углу дома, за которым скрывается обход.', camera: door, cameraEnd: corner },
-        { at: 2600, image: courtyard, imageAlt: 'Угол дома: обход уходит за пределы кадра.', camera: corner },
-        { at: 3800, image: angry, imageAlt: 'На «Поэтому» — злое лицо Боксёра крупно, по эталону сцены участкового.', camera: wide },
-      ] },
-    { id: 'forced', label: 'Я БЫЛ ВЫНУЖДЕН', duration: 4000, speechDelay: 150,
-      speaker: 'Боксёр · про себя', voice: 'boxer', text: 'Я БЫЛ ВЫНУЖДЕН… начать драку.', camera: wide,
-      shots: [
-        { at: 0, image: angry, imageAlt: 'Боксёр со злым лицом убеждён в собственной правоте.', camera: wide },
-        { at: 1600, image: ready, imageAlt: 'Боксёр первым поднял кулаки. Растерянный Рабочий держит лопату, не замахиваясь; лента между ними.', camera: wide },
+        { at: 0, image: ready, imageAlt: 'Злое лицо Боксёра крупно, кадрирование рисунка с боевой стойкой во дворе.', camera: angry },
+        { at: 200, image: ready, imageAlt: 'Во время «ДРАКА НЕИЗБЕЖНА» камера отъезжает от лица, раскрывая кулаки Боксёра и растерянного Рабочего с лопатой.', camera: angry, cameraEnd: wide },
+        { at: 1600, image: ready, imageAlt: 'Общий план: Боксёр первым поднял кулаки, Рабочий не нападает и стоит на сухом покрытии.', camera: wide },
       ] },
     { id: 'fight', label: 'Боксёр против Рабочего', duration: 2500,
       speaker: '', text: '', camera: wide, image: ready,
