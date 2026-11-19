@@ -9,7 +9,7 @@ const scene = scenes.find((scene) => scene.id === 'prologue')!;
 const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
 test('prologue follows the recap in the review list and has isolated seekable links', () => {
-  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'queue']);
+  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'queue']);
   assert.equal(readSceneLink('', scenes).scene.id, 'intro');
   assert.equal(scene.duration, 27300);
   assert.deepEqual(readSceneLink(sceneLink(scene, 24500), scenes), { scene, time: 24500 });
