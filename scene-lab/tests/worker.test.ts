@@ -8,26 +8,27 @@ import { Timeline } from '../src/timeline.ts';
 const scene = scenes.find((scene) => scene.id === 'worker')!;
 const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
-test('worker continues the certificate prologue and precedes the officer without replacing the recap', () => {
+test('worker continues the prologue with isolated links and leaves the officer arrival intact', () => {
   assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'queue']);
-  assert.equal(scene.duration, 23800);
+  assert.equal(scene.duration, 23120);
   assert.equal(scene.opponent, 'Рабочего');
   assert.deepEqual(readSceneLink(sceneLink(scene, 18900), scenes), { scene, time: 18900 });
   assert.equal(readSceneLink('#scene=worker&t=-1', scenes).time, 0);
   assert.equal(readSceneLink('#scene=worker&t=bad', scenes).time, 0);
-  assert.equal(readSceneLink('#scene=worker&t=999', scenes).time, 23800);
+  assert.equal(readSceneLink('#scene=worker&t=999', scenes).time, 23120);
   assert.equal(readSceneLink('', scenes).scene.id, 'intro');
   assert.equal(scenes.find((scene) => scene.id === 'prologue')!.duration, 27300);
   assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 30000);
 });
 
-test('approved dialogue leads into one serious self-justification with room to read each line', () => {
+test('the shorter thought and realization retain serious voices and readable holds', () => {
   assert.deepEqual(scene.cues.filter((cue) => cue.text).map((cue) => [cue.speaker, cue.text]), [
     ['Боксёр · рассказ', 'Но путь мне перегородил рабочий.'],
     ['Боксёр', 'Мне к участковому.'], ['Рабочий', 'Обходи.'],
     ['Боксёр', 'Так вот же дверь.'], ['Рабочий', 'А вот же лента.'],
-    ['Боксёр · про себя', 'У меня не было времени обходить весь район. Поэтому…'],
-    ['Боксёр · про себя', 'Я БЫЛ ВЫНУЖДЕН… начать драку.'],
+    ['Боксёр · про себя', 'У меня не было времени обходить.'],
+    ['Боксёр · про себя', 'И я понял…'],
+    ['Боксёр · про себя', 'ДРАКА НЕИЗБЕЖНА!'],
   ]);
   for (const cue of scene.cues.filter((cue) => cue.text)) {
     assert.ok(cue.speech.duration < cue.duration, cue.id);
@@ -37,47 +38,77 @@ test('approved dialogue leads into one serious self-justification with room to r
   }
   assert.ok(named('obstacle').duration - named('obstacle').speech.duration >= 600);
   assert.ok(named('tape').duration - named('tape').speech.duration >= 500);
-  assert.deepEqual(scene.events, []);
+  assert.ok(named('realization').duration - named('realization').speech.duration >= 400);
 });
 
-test('all gesture panels preload and the original angry portrait bridges the thought boundary', () => {
+test('the angry closeup and pullback use the same courtyard drawing with no separate portrait', () => {
   assert.deepEqual(sceneImages(scene).map((src) => src.split('/').at(-1)), [
-    'worker-wide-v2.webp', 'worker-boxer-point-v2.webp', 'worker-tape-v2.webp', 'boxer-angry.webp', 'worker-ready-v2.webp',
+    'worker-wide-v2.webp', 'worker-boxer-point-v2.webp', 'worker-tape-v2.webp', 'worker-ready-v2.webp',
   ]);
-  const reason = named('reason'), forced = named('forced');
-  assert.match(visualAt(scene, reason.start).image, /worker-wide-v2.webp$/);
-  assert.notDeepEqual(visualAt(scene, reason.start + 1500).camera, visualAt(scene, reason.start).camera);
-  assert.deepEqual(visualAt(scene, reason.start + 1500, true).camera, reason.shots![1].camera);
-  assert.match(visualAt(scene, reason.start + 3800).image, /boxer-angry.webp$/);
-  assert.deepEqual(visualAt(scene, forced.start).camera, visualAt(scene, reason.end - 1).camera);
-  assert.equal(visualAt(scene, forced.start).image, visualAt(scene, reason.end - 1).image);
-  assert.equal(cueAt(scene, reason.end).id, 'forced');
-  assert.ok(reason.duration - reason.speech.duration >= 600);
+  const flash = named('flash'), inevitable = named('inevitable');
+  assert.match(visualAt(scene, flash.start).image, /worker-ready-v2.webp$/);
+  for (const at of [inevitable.start, inevitable.start + 900, inevitable.end - 1]) {
+    assert.equal(visualAt(scene, at).image, visualAt(scene, flash.start).image);
+  }
+  assert.deepEqual(visualAt(scene, flash.end - 1).camera, visualAt(scene, inevitable.start).camera);
 });
 
-test('the pose cut stays inside a single growing caption and holds before the fight title', () => {
-  const forced = named('forced'), fight = named('fight');
-  const cut = forced.start + 1600;
-  assert.match(visualAt(scene, cut - 1).image, /boxer-angry.webp$/);
-  assert.match(visualAt(scene, cut).image, /worker-ready-v2.webp$/);
-  assert.equal(subtitleAt(forced.speech, 1599).trimEnd(), 'Я БЫЛ ВЫНУЖДЕН…');
-  assert.equal(subtitleAt(forced.speech, 1600).trimEnd(), 'Я БЫЛ ВЫНУЖДЕН…');
-  assert.match(subtitleAt(forced.speech, 2000), /^Я БЫЛ ВЫНУЖДЕН… начать/);
-  assert.match(visualAt(scene, cut, true).image, /worker-ready-v2.webp$/);
-  assert.ok(forced.duration - forced.speech.duration >= 1000);
-  assert.equal(forced.end, fight.start);
-  assert.deepEqual(visualAt(scene, forced.end - 1).camera, visualAt(scene, fight.start).camera);
+test('dialogue and the angry pullback preserve the complete head with visible headroom', () => {
+  for (const [id, bounds] of [
+    ['request', { left: .19, right: .29, top: .04, bottom: .24 }],
+    ['door', { left: .19, right: .29, top: .04, bottom: .24 }],
+    ['inevitable', { left: .18, right: .30, top: .08, bottom: .27 }],
+  ] as const) {
+    const cue = named(id);
+    for (const offset of [0, cue.duration / 2, cue.duration - 1]) {
+      const { scale, x, y } = visualAt(scene, cue.start + offset).camera;
+      const left = bounds.left * scale - x / 100 * (scale - 1);
+      const right = bounds.right * scale - x / 100 * (scale - 1);
+      const top = bounds.top * scale - y / 100 * (scale - 1);
+      const bottom = bounds.bottom * scale - y / 100 * (scale - 1);
+      assert.ok(left >= .02 && right <= .98 && top >= .02 && bottom <= .98, `${id}: full head inside frame`);
+    }
+  }
+});
+
+test('inevitable fight pulls back during speech and settles before the fight title', () => {
+  const cue = named('inevitable'), fight = named('fight');
+  const close = visualAt(scene, cue.start), middle = visualAt(scene, cue.start + 900);
+  const full = visualAt(scene, cue.start + 1600);
+  assert.ok(close.camera.scale > middle.camera.scale && middle.camera.scale > full.camera.scale);
+  assert.equal(full.camera.scale, 1);
+  assert.ok(subtitleAt(cue.speech, 900).length > 0);
+  assert.ok(cue.speech.duration >= 1600);
+  assert.deepEqual(visualAt(scene, cue.start + 900, true).camera, close.camera);
+  assert.deepEqual(visualAt(scene, cue.start + 1600, true).camera, full.camera);
+  assert.deepEqual(visualAt(scene, cue.end - 1).camera, full.camera);
+  assert.ok(cue.duration - cue.speech.duration >= 1000);
+  assert.equal(cue.end, fight.start);
+  assert.deepEqual(visualAt(scene, cue.end - 1).camera, visualAt(scene, fight.start).camera);
   assert.equal(scene.cues.filter((cue) => cue.fight).length, 1);
   assert.equal(scene.cues.at(-1), fight);
   assert.equal(fight.text, '');
-  assert.equal(fight.fight, true);
-  assert.equal(fight.duration, 2500);
 });
 
-test('pause, seek, completion and replay preserve the worker scene and its final pose', () => {
+test('one brief silent flash separates realization from the pullback at exact boundaries', () => {
+  const realization = named('realization'), flash = named('flash'), inevitable = named('inevitable');
+  assert.equal(realization.end, flash.start);
+  assert.equal(flash.duration, 120);
+  assert.equal(flash.text, '');
+  assert.equal(flash.speech.duration, 0);
+  assert.equal(flash.flash, true);
+  assert.equal(flash.end, inevitable.start);
+  assert.equal(cueAt(scene, flash.start - 1).id, 'realization');
+  assert.equal(cueAt(scene, flash.end - 1).id, 'flash');
+  assert.equal(cueAt(scene, flash.end).id, 'inevitable');
+  assert.deepEqual(scene.events, [{ time: flash.start, sound: 'impact' }]);
+  assert.equal(scenes.flatMap((scene) => scene.cues).filter((cue) => cue.flash).length, 1);
+});
+
+test('pause during the pullback freezes framing; completion and replay preserve the final pose', () => {
   const player = new Timeline(scene);
   assert.equal(player.playing, false);
-  player.seek(named('forced').start + 1700); player.play(); player.pause();
+  player.seek(named('inevitable').start + 700); player.play(); player.pause();
   const pose = visualAt(scene, player.time);
   player.advance(500);
   assert.deepEqual(visualAt(scene, player.time), pose);

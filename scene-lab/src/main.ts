@@ -31,6 +31,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <div class="stage" id="stage" tabindex="0" aria-label="Кадр сцены. Пробел — пауза, стрелки — смена кадра">
           <img id="art" alt="" draggable="false" />
           <div class="stage-shade"></div>
+          <div class="scene-flash" id="scene-flash" aria-hidden="true" hidden></div>
           <span class="frame-counter" id="frame-counter"></span>
           <span class="scene-setting" id="scene-setting" hidden></span>
           <span class="paused-mark" id="paused-mark" hidden>ПАУЗА</span>
@@ -175,6 +176,7 @@ function render(): void {
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
   element('subtitle').hidden = !started || !cue.text || timeline.time - cue.start < (cue.speechDelay ?? 0);
+  element('scene-flash').hidden = !started || !timeline.playing || !cue.flash || reducedMotion.matches;
   element('fight').hidden = !started || !cue.fight;
   element('title-card').hidden = !started || !cue.titleCard;
   element('scene-setting').hidden = !started || !cue.setting || !!cue.titleCard;

@@ -23,6 +23,7 @@ export interface Cue {
   shots?: Shot[];
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
+  flash?: boolean;
   titleCard?: { eyebrow: string; title: string };
   setting?: string;
 }
