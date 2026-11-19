@@ -110,7 +110,7 @@ test('all original illustrations preload in the same narrative order', () => {
   const images = intro.cues.flatMap((cue) => cue.shots ?? []).map((shot) => shot.image.split('/').at(-1));
   assert.deepEqual(images.filter((image, index) => index === 0 || image !== images[index - 1]), [
     'intro-gym-v3.webp', 'intro-arrest.webp', 'intro-court-v2.webp', 'intro-cell-v3.webp',
-    'intro-escape-v4.webp', 'intro-road-v4.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
+    'intro-escape-v5.webp', 'intro-road-v4.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
     'intro-woman-v3.webp', 'boxer-angry.webp', 'intro-woman-after-v4.webp', 'intro-controller-v3.webp',
     'intro-billiards-v4.webp', 'intro-acquittal-v3.webp', 'intro-gym-v4.webp',
   ]);
@@ -154,24 +154,27 @@ test('invalid plan ordering, timing, assets and camera endpoints fail before pla
   assert.throws(() => compileScene({ ...intro, cues: [{ ...cue, titleCard, fight: true }] }), /Неверный титр/);
 });
 
-test('authored silences shrink by 30 percent while every spoken syllable keeps its timing', () => {
+test('untouched beats retain shortened silences and every spoken syllable keeps its timing', () => {
   const previous: [string, number, number][] = [
     ['murder', 5100, 500], ['pistol', 4400, 650], ['pocket', 3800, 0],
     ['recognition', 6100, 2400], ['court', 3000, 350], ['court-silence', 700, 0],
-    ['prison', 3500, 250], ['escape', 3100, 250], ['moscow', 4700, 650],
-    ['world', 3400, 200], ['obstacles', 4500, 200], ['no-harm', 4800, 300],
-    ['forced', 3100, 900], ['difficulties', 4500, 350], ['culprit', 5700, 450],
+    ['prison', 3500, 250], ['moscow', 4700, 650],
+    ['world', 3400, 200], ['no-harm', 4800, 300],
+    ['difficulties', 4500, 350],
     ['acquittal', 3300, 650], ['boxing', 5500, 500],
   ];
-  assert.equal(previous.length, intro.cues.length);
+  assert.equal(previous.length, 13);
   for (const [id, oldDuration, oldDelay] of previous) {
     const cue = named(id), speech = planSpeech(cue.text, cue.voice);
     assert.equal(cue.speechDelay, Math.round(oldDelay * 0.7), id);
     assert.equal(cue.duration - cue.speech.duration, Math.round((oldDuration - oldDelay - speech.duration) * 0.7), id);
+  }
+  for (const cue of intro.cues) {
+    const speech = planSpeech(cue.text, cue.voice);
     assert.deepEqual(cue.speech.syllables, speech.syllables.map((syllable) => ({ ...syllable,
       at: syllable.at + cue.speechDelay!, end: syllable.end + cue.speechDelay! })));
   }
-  assert.equal(intro.duration, 60151);
+  assert.equal(intro.duration, 64254);
 });
 
 test('opponent reveals begin on the face and pull back under the same growing caption', () => {
@@ -196,13 +199,43 @@ test('opponent reveals begin on the face and pull back under the same growing ca
   assert.deepEqual(named('difficulties').shots!.map((shot) => shot.at), [0, 1000, 3500]);
 });
 
-test('biker and woman get equal screen time and final training uses its own illustration', () => {
-  const cue = named('obstacles');
-  assert.equal(cue.shots!.length, 2);
-  const cut = cue.shots![1].at;
-  assert.equal(cut, cue.duration - cut);
-  assert.match(visualAt(intro, cue.start + cut - 1).image, /intro-biker-v3.webp$/);
-  assert.match(visualAt(intro, cue.start + cut).image, /intro-woman-v3.webp$/);
+test('the biker clause settles before the woman clause starts its centered pullback', () => {
+  const biker = named('obstacles'), woman = named('obstacles-woman');
+  assert.equal(biker.text, 'Каждый встречный');
+  assert.equal(woman.text, 'пытался мне помешать.');
+  assert.equal(woman.start, biker.end);
+  assert.ok(biker.duration - biker.speech.duration >= 500);
+  assert.match(visualAt(intro, biker.end - 1).image, /intro-biker-v3.webp$/);
+  assert.equal(subtitleAt(biker.speech, biker.duration - 1), biker.text);
+  assert.match(visualAt(intro, woman.start).image, /intro-woman-v3.webp$/);
+  assert.equal(subtitleAt(woman.speech, 249), '');
+  assert.deepEqual(visualAt(intro, woman.start).camera, { scale: 2, x: 50, y: 50 });
+  const moving = visualAt(intro, woman.start + 1200).camera;
+  assert.ok(moving.scale > 1 && moving.scale < 2);
+  assert.ok(subtitleAt(woman.speech, 1200).startsWith('пытался'));
+  assert.equal(visualAt(intro, woman.start + 2350).camera.scale, 1);
+  assert.ok(woman.duration - 2350 >= 1000);
+  assert.deepEqual(visualAt(intro, woman.start + 1200, true).camera, { scale: 2, x: 50, y: 50 });
+  assert.equal(visualAt(intro, woman.start + 2350, true).camera.scale, 1);
   assert.match(visualAt(intro, 0).image, /intro-gym-v3.webp$/);
   assert.match(visualAt(intro, named('boxing').start).image, /intro-gym-v4.webp$/);
+});
+
+test('revealed escape, woman and bandit remain still after both motion and speech finish', () => {
+  for (const [id, minimum, next] of [
+    ['escape', 1900, 'moscow'], ['forced', 1300, 'difficulties'], ['culprit', 1900, 'acquittal'],
+  ] as const) {
+    const cue = named(id), stop = cue.shots!.at(-1)!.at;
+    const holdStart = Math.max(stop, cue.speech.duration);
+    assert.ok(cue.duration - holdStart >= minimum, id);
+    assert.ok(cue.duration - stop >= (id === 'forced' ? 1500 : 2000), id);
+    const full = visualAt(intro, cue.start + holdStart);
+    assert.equal(full.camera.scale, 1, id);
+    for (const elapsed of [holdStart, holdStart + 500, cue.duration - 1]) {
+      assert.deepEqual(visualAt(intro, cue.start + elapsed), full, id);
+      assert.equal(subtitleAt(cue.speech, elapsed), cue.text, id);
+      assert.equal(cueAt(intro, cue.start + elapsed), cue, id);
+    }
+    assert.equal(cueAt(intro, cue.end).id, next, id);
+  }
 });

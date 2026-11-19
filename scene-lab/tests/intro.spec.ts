@@ -8,7 +8,7 @@ test('the narration starts after a held image, pauses and replays without autopl
   await page.goto('./');
   await expect(page.locator('#scene-select')).toHaveValue('intro');
   await expect(page.locator('#story-intro')).toHaveText('Моё прошлое');
-  await expect(page.locator('#story-duration')).toContainText('60.151 с');
+  await expect(page.locator('#story-duration')).toContainText('64.254 с');
   await expect(page.locator('#start')).toBeEnabled();
   await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
   await page.clock.runFor(500);
@@ -33,7 +33,7 @@ test('the narration starts after a held image, pauses and replays without autopl
   await expect(page.locator('#caption-typed')).toHaveText(partial!);
   await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
   await page.clock.runFor(70000);
-  await expect(page.locator('#scrub')).toHaveValue('60151');
+  await expect(page.locator('#scrub')).toHaveValue('64254');
   await expect(page.locator('#caption-typed')).toHaveText('Я снова стал заниматься боксом.');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-gym-v4.webp$/);
   await expect(page.locator('#title-card')).toBeHidden();
@@ -97,13 +97,13 @@ test('camera settles on the puzzled face before speech; the judge line clears in
   await page.locator('#scrub').fill('22841');
   await expect(page.locator('#caption-typed')).toHaveText('И меня посадили в тюрьму.');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-cell-v3.webp$/);
-  await page.locator('#scrub').fill('41106');
+  await page.locator('#scrub').fill('43281');
   await expect(page.locator('#caption-typed')).toHaveText('Я никому не хотел причинять зла.');
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
-  await page.locator('#scrub').fill('41736');
+  await page.locator('#scrub').fill('43911');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-after-v4.webp$/);
   await expect(page.locator('#subtitle')).toBeHidden();
-  await page.locator('#scrub').fill('43742');
+  await page.locator('#scrub').fill('46831');
   await expect(page.locator('#caption-typed')).toHaveText('Но был вынужден.');
 });
 
@@ -145,7 +145,7 @@ test('reduced motion retains dramatic pauses and cuts without camera motion', as
   const initial = await page.locator('#art').getAttribute('style');
   await page.locator('#scrub').fill('7000');
   await expect(page.locator('#art')).toHaveAttribute('style', initial!);
-  await page.locator('#scrub').fill('25425');
+  await page.locator('#scrub').fill('26292');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-road-v4.webp$/);
   await expect(page.locator('#subtitle')).toBeHidden();
   expect(await page.locator('#art').evaluate((img) => getComputedStyle(img).transitionDuration)).toBe('0s');
@@ -154,9 +154,9 @@ test('reduced motion retains dramatic pauses and cuts without camera motion', as
 test('short thought-sized captions and controls fit narrow screens', async ({ page }) => {
   for (const width of [320, 360]) {
     await page.setViewportSize({ width, height: 800 });
-    await page.goto('./#scene=intro&t=52.7');
+    await page.goto('./#scene=intro&t=56.8');
     await expect(page.locator('#start')).toBeEnabled();
-    await page.locator('#scrub').fill('52700');
+    await page.locator('#scrub').fill('56800');
     await expect(page.locator('#caption-typed')).toContainText('подставил.');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     const stage = await page.locator('#stage').boundingBox();
@@ -167,14 +167,15 @@ test('short thought-sized captions and controls fit narrow screens', async ({ pa
 });
 
 
-test('face-first reveals keep the image and growing narration through the pullback', async ({ page }) => {
+test('reveals keep the image and growing narration through the pullback', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('#start')).toBeEnabled();
   const reveals = [
-    { start: 22842, early: 375, late: 1350, end: 1450, asset: 'intro-escape-v4.webp' },
-    { start: 29803, early: 500, late: 2200, end: 2350, asset: 'intro-driver-v3.webp' },
-    { start: 41107, early: 830, late: 2000, end: 2050, asset: 'intro-woman-after-v4.webp' },
-    { start: 47522, early: 1235, late: 3800, end: 3900, asset: 'intro-billiards-v4.webp' },
+    { start: 22842, early: 375, late: 1350, end: 1450, asset: 'intro-escape-v5.webp' },
+    { start: 30670, early: 500, late: 2200, end: 2350, asset: 'intro-driver-v3.webp' },
+    { start: 35555, early: 450, late: 2100, end: 2350, asset: 'intro-woman-v3.webp' },
+    { start: 43282, early: 830, late: 2000, end: 2050, asset: 'intro-woman-after-v4.webp' },
+    { start: 50611, early: 1235, late: 3800, end: 3900, asset: 'intro-billiards-v4.webp' },
   ];
   for (const reveal of reveals) {
     await page.locator('#scrub').fill(String(reveal.start));
@@ -194,8 +195,40 @@ test('face-first reveals keep the image and growing narration through the pullba
     await page.locator('#scrub').fill(String(reveal.start + reveal.end));
     expect(await page.locator('#art').evaluate((img) => img.style.transform)).toBe('scale(1)');
   }
-  await page.locator('#scrub').fill('34883');
+  await page.locator('#scrub').fill('35554');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-biker-v3.webp$/);
-  await page.locator('#scrub').fill('34884');
+  await expect(page.locator('#caption-typed')).toHaveText('Каждый встречный');
+  await page.locator('#scrub').fill('35555');
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-v3.webp$/);
+  await expect(page.locator('#subtitle')).toBeHidden();
+  expect(await page.locator('#art').evaluate((img) => img.style.transformOrigin)).toBe('50% 50%');
+});
+
+
+test('revealed images and completed captions hold during playback before the next cut', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-01-01T08:00:00Z') });
+  await page.goto('./');
+  await expect(page.locator('#start')).toBeEnabled();
+  await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
+  await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
+  const holds = [
+    { at: 24392, end: 26292, text: 'Но я сбежал.', image: 'intro-escape-v5.webp', next: 'intro-road-v4.webp' },
+    { at: 37905, end: 39055, text: 'пытался мне помешать.', image: 'intro-woman-v3.webp', next: 'boxer-angry.webp' },
+    { at: 45467, end: 46832, text: 'Но был вынужден.', image: 'intro-woman-after-v4.webp', next: 'intro-controller-v3.webp' },
+    { at: 54911, end: 56811, text: 'я добрался до мерзавца, который меня подставил.', image: 'intro-billiards-v4.webp', next: 'intro-acquittal-v3.webp' },
+  ];
+  for (const hold of holds) {
+    await page.locator('#scrub').fill(String(hold.at));
+    await expect(page.locator('#caption-typed')).toHaveText(hold.text);
+    const still = await page.locator('#art').getAttribute('style');
+    expect(await page.locator('#art').evaluate((img) => img.style.transform)).toBe('scale(1)');
+    await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+    await page.clock.runFor(hold.end - hold.at - 100);
+    await expect(page.locator('#art')).toHaveAttribute('src', new RegExp(hold.image + '$'));
+    await expect(page.locator('#art')).toHaveAttribute('style', still!);
+    await expect(page.locator('#caption-typed')).toHaveText(hold.text);
+    await page.clock.runFor(200);
+    await expect(page.locator('#art')).toHaveAttribute('src', new RegExp(hold.next + '$'));
+    await page.getByRole('button', { name: 'Пауза', exact: true }).click();
+  }
 });
