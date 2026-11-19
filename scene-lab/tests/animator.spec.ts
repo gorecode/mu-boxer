@@ -127,6 +127,16 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     await expect(page.locator('#art')).toHaveAttribute('src', /animator-final-v2.webp$/);
     await expect(page.locator('#fight')).toBeVisible();
     await expect(page.locator('#scene-flash')).toBeVisible({ visible: reducedMotion === 'no-preference' });
+    if (reducedMotion === 'no-preference') {
+      const topLayer = await page.locator('#scene-flash').evaluate((flash) => {
+        flash.style.pointerEvents = 'auto';
+        const bounds = flash.getBoundingClientRect();
+        const top = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)?.id;
+        flash.style.pointerEvents = '';
+        return top;
+      });
+      expect(topLayer).toBe('scene-flash');
+    }
     await page.getByRole('button', { name: 'Пауза', exact: true }).click();
     await expect(page.locator('#scene-flash')).toBeHidden();
     await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
