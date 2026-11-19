@@ -189,3 +189,23 @@ test('officer names concrete legs; split reaction pauses before the angry face',
   }))).toEqual(camera);
   await expect(page.locator('#caption-typed')).toHaveText('Ещё раз я не собираюсь!');
 });
+
+
+test('officer reports the beaten worker before asking about concrete on the suspect', async ({ page }) => {
+  await page.goto('./#scene=precinct&t=0');
+  await expect(page.locator('#start')).toBeEnabled();
+  await page.locator('#scrub').fill('6000');
+  await expect(page.locator('#caption-typed')).toHaveText('');
+  await expect(page.locator('[data-cue=report]')).toHaveText(/Рабочего избили/);
+  await page.locator('#scrub').fill('8755');
+  await expect(page.locator('#caption-typed')).toHaveText('Рабочего избили? Приметы?');
+  await expect(page.locator('#art')).toHaveAttribute('src', /precinct.webp$/);
+  await page.locator('#scrub').fill('9999');
+  await expect(page.locator('#caption-typed')).toHaveText('Рабочего избили? Приметы?');
+  await expect(page.locator('[data-cue=report]')).toHaveAttribute('aria-current', 'step');
+  await page.locator('#scrub').fill('10000');
+  await expect(page.locator('#caption-typed')).toHaveText('');
+  await expect(page.locator('[data-cue=clue]')).toHaveAttribute('aria-current', 'step');
+  await page.locator('#scrub').fill('11799');
+  await expect(page.locator('#caption-typed')).toHaveText('Ноги в бетоне?');
+});

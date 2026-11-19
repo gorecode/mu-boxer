@@ -16,7 +16,7 @@ test('vowels set mu rhythm; punctuation provides a silent reading pause', () => 
   const plain = planSpeech('Му му');
   const paused = planSpeech('Му, му');
   assert.equal(plain.syllables.length, 2);
-  assert.equal(planSpeech('Дворника избили?').syllables.length, 6);
+  assert.equal(planSpeech('Рабочего избили?').syllables.length, 7);
   assert.ok(paused.syllables[1].at - plain.syllables[1].at >= 100);
   const gap = (paused.syllables[0].end + paused.syllables[1].at) / 2;
   const curves = voiceCurves(paused, gap, 1);
