@@ -174,7 +174,7 @@ function render(): void {
   art.style.transformOrigin = `${visual.camera.x}% ${visual.camera.y}%`;
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
-  element('subtitle').hidden = !started || !cue.text;
+  element('subtitle').hidden = !started || !cue.text || timeline.time - cue.start < (cue.speechDelay ?? 0);
   element('fight').hidden = !started || !cue.fight;
   element('title-card').hidden = !started || !cue.titleCard;
   element('scene-setting').hidden = !started || !cue.setting || !!cue.titleCard;
