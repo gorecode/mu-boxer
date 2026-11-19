@@ -171,7 +171,7 @@ test('reveals keep the image and growing narration through the pullback', async 
   await page.goto('./');
   await expect(page.locator('#start')).toBeEnabled();
   const reveals = [
-    { start: 22842, early: 375, late: 1350, end: 1450, asset: 'intro-escape-v5.webp' },
+    { start: 22842, early: 375, late: 1350, end: 1450, asset: 'intro-escape-v6.webp' },
     { start: 30670, early: 500, late: 2200, end: 2350, asset: 'intro-driver-v3.webp' },
     { start: 35555, early: 450, late: 2100, end: 2350, asset: 'intro-woman-v3.webp' },
     { start: 43282, early: 830, late: 2000, end: 2050, asset: 'intro-woman-after-v4.webp' },
@@ -212,7 +212,7 @@ test('revealed images and completed captions hold during playback before the nex
   await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
   await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
   const holds = [
-    { at: 24392, end: 26292, text: 'Но я сбежал.', image: 'intro-escape-v5.webp', next: 'intro-road-v4.webp' },
+    { at: 24392, end: 26292, text: 'Но я сбежал.', image: 'intro-escape-v6.webp', next: 'intro-road-v4.webp' },
     { at: 37905, end: 39055, text: 'пытался мне помешать.', image: 'intro-woman-v3.webp', next: 'boxer-angry.webp' },
     { at: 45467, end: 46832, text: 'Но был вынужден.', image: 'intro-woman-after-v4.webp', next: 'intro-controller-v3.webp' },
     { at: 54911, end: 56811, text: 'я добрался до мерзавца, который меня подставил.', image: 'intro-billiards-v4.webp', next: 'intro-acquittal-v3.webp' },
