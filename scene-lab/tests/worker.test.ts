@@ -9,7 +9,7 @@ const scene = scenes.find((scene) => scene.id === 'worker')!;
 const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
 test('worker continues the prologue with isolated links and leaves the officer arrival intact', () => {
-  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'queue']);
+  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'slider', 'queue']);
   assert.equal(scene.duration, 23120);
   assert.equal(scene.opponent, 'Рабочего');
   assert.deepEqual(readSceneLink(sceneLink(scene, 18900), scenes), { scene, time: 18900 });
@@ -102,7 +102,7 @@ test('one brief silent flash separates realization from the pullback at exact bo
   assert.equal(cueAt(scene, flash.end - 1).id, 'flash');
   assert.equal(cueAt(scene, flash.end).id, 'inevitable');
   assert.deepEqual(scene.events, [{ time: flash.start, sound: 'impact' }]);
-  assert.equal(scenes.flatMap((scene) => scene.cues).filter((cue) => cue.flash).length, 1);
+  assert.equal(scene.cues.filter((cue) => cue.flash).length, 1);
 });
 
 test('pause during the pullback freezes framing; completion and replay preserve the final pose', () => {

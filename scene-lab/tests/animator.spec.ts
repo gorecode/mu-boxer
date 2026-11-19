@@ -47,7 +47,7 @@ test('exit, introduction, reading pause and matching wide thought panels follow 
     ['22899', 'wide-v2', 'Тебе смешно?'], ['22900', 'gesture-v2', ''],
     ['27299', 'gesture-v2', 'Я ничего плохого ему не сказал.'],
     ['30699', 'gesture-v2', 'А он уже поднял на меня руку.'], ['30700', 'ready-v2', ''],
-    ['34499', 'ready-v2', 'Он вынудил меня защищаться.'], ['34500', 'final-v2', ''],
+    ['34499', 'ready-v2', 'Он вынудил меня защищаться.'], ['34500', 'ready-v2', ''],
   ]) {
     await page.locator('#scrub').fill(time);
     await expect(page.locator('#art')).toHaveAttribute('src', new RegExp(`animator-${image}.webp$`));
@@ -111,3 +111,40 @@ test('wide expression cut, direct links and narrow captions work with reduced mo
     expect(subtitle!.x + subtitle!.width).toBeLessThanOrEqual(stage!.x + stage!.width);
   }
 });
+
+for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+  test(`final art and fight title switch together with a short playback-only flash: ${reducedMotion}`, async ({ page }) => {
+    await page.emulateMedia({ reducedMotion });
+    await page.clock.install({ time: new Date('2026-01-01T08:00:00Z') });
+    await page.goto('./#scene=animator&t=35.8');
+    await expect(page.locator('#start')).toBeEnabled();
+    await page.clock.pauseAt(new Date('2026-01-01T09:00:00Z'));
+    await expect(page.locator('#art')).toHaveAttribute('src', /animator-ready-v2.webp$/);
+    await expect(page.locator('#fight')).toBeHidden();
+    await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
+    await page.locator('#start').click();
+    await page.clock.runFor(140);
+    await expect(page.locator('#art')).toHaveAttribute('src', /animator-final-v2.webp$/);
+    await expect(page.locator('#fight')).toBeVisible();
+    await expect(page.locator('#scene-flash')).toBeVisible({ visible: reducedMotion === 'no-preference' });
+    if (reducedMotion === 'no-preference') {
+      const topLayer = await page.locator('#scene-flash').evaluate((flash) => {
+        flash.style.pointerEvents = 'auto';
+        const bounds = flash.getBoundingClientRect();
+        const top = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)?.id;
+        flash.style.pointerEvents = '';
+        return top;
+      });
+      expect(topLayer).toBe('scene-flash');
+    }
+    await page.getByRole('button', { name: 'Пауза', exact: true }).click();
+    await expect(page.locator('#scene-flash')).toBeHidden();
+    await page.getByRole('button', { name: 'Воспроизвести', exact: true }).click();
+    await page.clock.runFor(160);
+    await expect(page.locator('#scene-flash')).toBeHidden();
+    await expect(page.locator('#fight')).toBeVisible();
+    await page.locator('#scrub').fill('35900');
+    await expect(page.locator('#scene-flash')).toBeHidden();
+    await expect(page.locator('#fight')).toBeVisible();
+  });
+}
