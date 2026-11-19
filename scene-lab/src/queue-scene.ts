@@ -4,11 +4,25 @@ const art = (name: string): string => `${import.meta.env?.BASE_URL ?? './'}art/$
 const wide = { scale: 1, x: 50, y: 50 };
 export const queue: Scene = {
   id: 'queue', title: 'Только через мой труп', subtitle: 'Глава 06 · Бабка',
-  intro: { location: 'Приёмная. Электронная очередь.', title: 'Меня вызвали.' },
+  intro: { location: 'После боя с Анжеликой. МФЦ.', title: 'К другим сотрудникам.' },
   image: art('queue-wide'),
   imageAlt: 'Боксёр идёт к окну приёма. Бабка в берете перекрывает проход клетчатой сумкой на колёсиках.',
   opponent: 'Бабки',
   cues: [
+    { id: 'angelika-aftermath', label: 'Способности убедили', duration: 4200, speechDelay: 150,
+      speaker: 'Боксёр · рассказ', voice: 'boxer', text: 'Мои способности её убедили.', camera: wide,
+      shots: [
+        { at: 0, image: art('queue-aftermath-v2'), imageAlt: 'Спокойное лицо Боксёра в гримёрной. Последствия его демонстрации пока вне кадра.', camera: { scale: 2.5, x: 0, y: 15 } },
+        { at: 350, image: art('queue-aftermath-v2'), imageAlt: 'Во время рассказа камера отходит: Анжелика лежит у гримёрного столика. Ключи рядом с её рукой, сигарета в пепельнице.', camera: { scale: 2.5, x: 0, y: 15 }, cameraEnd: wide },
+        { at: 2300, image: art('queue-aftermath-v2'), imageAlt: 'Общий план: Боксёр спокоен, Анжелика повержена. Выдержка после раскрытия.', camera: wide },
+      ] },
+    { id: 'public-entrance', label: 'К другим сотрудникам', duration: 5000, speechDelay: 250,
+      speaker: 'Боксёр · рассказ', voice: 'boxer', text: 'За справкой пришлось обратиться к другим сотрудникам.', camera: wide,
+      image: art('queue-entrance-v1'), imageAlt: 'Боксёр вышел из служебной двери слева и идёт направо к открытому публичному входу МФЦ. Обе двери видны вместе.' },
+    { id: 'terminal', label: 'Всё организовано', duration: 3800, speechDelay: 500,
+      speaker: 'Боксёр · рассказ', voice: 'boxer', text: 'Здесь всё было организовано.', camera: wide,
+      image: art('queue-terminal-v2'), imageAlt: 'В МФЦ Боксёр нажимает кнопку СПРАВКИ на терминале. Из щели выходит талон; его номер пока не показан.',
+      sounds: [{ at: 2500, sound: 'paper' }] },
     { id: 'ticket', label: 'Талон № 111', duration: 1500, speaker: '', text: '', camera: wide,
       image: art('queue-ticket'), imageAlt: 'Крупный план талона с номером 111 в руке боксёра.',
       sounds: [{ at: 100, sound: 'paper' }] },
