@@ -55,7 +55,7 @@ test('mode and chapter selectors preserve speed, pause audio and share global po
   await page.locator('#scene-select').selectOption('bandit');
   const chapter = film.chapters.find(chapter => chapter.scene.id === 'bandit')!;
   await expect(page.locator('#scrub')).toHaveValue(String(chapter.start));
-  await page.locator('#scrub').fill(String(chapter.start + 19499));
+  await page.locator('#scrub').fill(String(chapter.start + chapter.scene.cues.find(cue => cue.id === 'no-answer')!.end - 1));
   await expect(page.locator('#caption-typed')).toHaveText('Там не ответят.');
   await expect(page.locator('#art')).toHaveAttribute('src', /bandit-phone-v1.webp$/);
   await page.locator('#share').click();
@@ -101,7 +101,7 @@ test('film keeps audio active and schedules the next chapter voice rather than s
 });
 
 test('a late film asset failure blocks playback and switching back to a valid single scene recovers', async ({ page }) => {
-  await page.route('**/art/epilogue-exit-v1.webp', route => route.abort());
+  await page.route('**/art/epilogue-exit-v2.webp', route => route.abort());
   await page.goto('./#scene=film&t=0');
   await expect(page.locator('#status')).toContainText('Не удалось загрузить иллюстрацию');
   await expect(page.locator('#start')).toBeDisabled();
@@ -109,7 +109,7 @@ test('a late film asset failure blocks playback and switching back to a valid si
   await page.locator('#mode-select').selectOption('scene');
   await expect(page.locator('#scene-select')).toHaveValue('intro');
   await expect(page.locator('#start')).toBeEnabled();
-  await page.unroute('**/art/epilogue-exit-v1.webp');
+  await page.unroute('**/art/epilogue-exit-v2.webp');
   await page.locator('#mode-select').selectOption('film');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#status')).not.toContainText('Не удалось');

@@ -12,12 +12,12 @@ test('slider follows the animator with aftermath, route and a new encounter in t
   assert.ok(scene);
   assert.equal(scenes[scenes.indexOf(scene) - 1].id, 'animator');
   assert.equal(scenes[scenes.indexOf(scene) + 1].id, 'service');
-  assert.equal(scene.duration, 32700);
+  assert.equal(scene.duration, 34400);
   assert.equal(scene.opponent, 'Неформала');
   for (const [at, id, image] of [
     [0, 'aftermath', 'aftermath'], [3999, 'aftermath', 'aftermath'],
     [4000, 'passage', 'passage'], [7799, 'passage', 'passage'],
-    [7800, 'slide', 'slide'], [11199, 'slide', 'slide'], [11200, 'question', 'dialogue'],
+    [7800, 'slide', 'slide'], [11699, 'slide', 'slide'], [11700, 'question', 'dialogue'],
   ] as const) {
     assert.equal(cueAt(scene, at).id, id);
     assert.match(visualAt(scene, at).image, new RegExp(`slider-${image}-v1.webp$`));
@@ -50,9 +50,14 @@ test('word misunderstanding pauses on a thinking face; the camera is established
   for (const id of ['recording', 'repeat', 'witness']) {
     assert.equal(visualAt(scene, cue(id).start).camera.scale, 1);
   }
-  assert.equal(visualAt(scene, cue('recording').start).image, visualAt(scene, cue('repeat').start).image);
+  assert.match(visualAt(scene, cue('recording').start).image, /slider-dialogue-v1.webp$/);
+  assert.equal(cue('recording').end, cue('recording-pause').start);
+  assert.equal(cue('recording-pause').end, cue('repeat').start);
+  assert.ok(cue('recording-pause').duration >= 400);
+  assert.match(visualAt(scene, cue('repeat').start).image, /slider-runup-v1.webp$/);
+  assert.equal(cue('normies').text, 'Кошмарим нормисов на камеру!');
   assert.match(visualAt(scene, cue('witness').start).image, /slider-angry-v1.webp$/);
-  assert.equal(cue('witness').text, 'На этот раз у меня был свидетель.');
+  assert.equal(cue('witness').text, 'На этот раз я готов.');
   for (const spoken of scene.cues.filter((cue) => cue.text)) {
     assert.equal(subtitleAt(spoken.speech, spoken.speechDelay! - 1), '');
     assert.equal(subtitleAt(spoken.speech, spoken.duration - 1), spoken.text);
@@ -63,7 +68,7 @@ test('word misunderstanding pauses on a thinking face; the camera is established
 
 test('final stance is revealed with the title and one brief flash, never during the thought', () => {
   const flash = cue('fight-flash'), fight = cue('fight');
-  assert.equal(flash.start, 30200);
+  assert.equal(flash.start, 31900);
   assert.match(visualAt(scene, flash.start - 1).image, /slider-angry-v1.webp$/);
   assert.equal(cueAt(scene, flash.start - 1).fight, undefined);
   assert.equal(flash.fight, true);
@@ -74,7 +79,7 @@ test('final stance is revealed with the title and one brief flash, never during 
   assert.equal(fight.fight, true);
   assert.equal(fight.flash, undefined);
   assert.equal(scene.cues.at(-1), fight);
-  assert.deepEqual(scene.events, [{ time: 7900, sound: 'chair' }, { time: 30200, sound: 'impact' }]);
+  assert.deepEqual(scene.events, [{ time: 8700, sound: 'chair' }, { time: 31900, sound: 'impact' }]);
 });
 
 test('dialogue preserves whole heads at the beginning, middle and end of each shot', () => {
@@ -97,7 +102,7 @@ test('dialogue preserves whole heads at the beginning, middle and end of each sh
 
 test('links, paused pullback, completion and replay retain independent slider state', () => {
   assert.deepEqual(readSceneLink(sceneLink(scene, 1200), scenes), { scene, time: 1200 });
-  for (const [value, expected] of [['-1', 0], ['NaN', 0], ['999', 32700]] as const) {
+  for (const [value, expected] of [['-1', 0], ['NaN', 0], ['999', 34400]] as const) {
     assert.equal(readSceneLink(`#scene=slider&t=${value}`, scenes).time, expected);
   }
   const player = new Timeline(scene);
@@ -113,4 +118,20 @@ test('links, paused pullback, completion and replay retain independent slider st
   player.play();
   assert.equal(player.time, 0);
   assert.match(visualAt(scene, player.time).image, /slider-aftermath-v1.webp$/);
+});
+
+test('the slide is revealed under one continuing line and settles before the next exchange', () => {
+  const slide = cue('slide');
+  const close = visualAt(scene, slide.start + 550), middle = visualAt(scene, slide.start + 1400);
+  const full = visualAt(scene, slide.start + 2300);
+  assert.ok(close.camera.scale > middle.camera.scale && middle.camera.scale > full.camera.scale);
+  assert.equal(full.camera.scale, 1);
+  assert.equal(close.image, full.image);
+  assert.ok(.23 * close.camera.scale - close.camera.y / 100 * (close.camera.scale - 1) >= .15);
+  assert.ok(.38 * close.camera.scale - close.camera.y / 100 * (close.camera.scale - 1) <= .72);
+  assert.ok(.49 * close.camera.scale - close.camera.x / 100 * (close.camera.scale - 1) > 1);
+  assert.ok(subtitleAt(slide.speech, 1400).length > subtitleAt(slide.speech, 550).length);
+  assert.ok(slide.duration - Math.max(2300, slide.speech.duration) >= 1000);
+  assert.deepEqual(visualAt(scene, slide.start + 1400, true), close);
+  assert.deepEqual(visualAt(scene, slide.start + 2300, true), full);
 });

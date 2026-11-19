@@ -1,6 +1,6 @@
 import './style.css';
 import { scenes } from './scenes.ts';
-import { cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
+import { blackoutAt, cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
 import { chapterAt, compileFilm } from './film.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
@@ -36,6 +36,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
           <img id="art" alt="" draggable="false" />
           <div class="stage-shade"></div>
           <div class="scene-flash" id="scene-flash" aria-hidden="true" hidden></div>
+          <div class="scene-blackout" id="scene-blackout" aria-hidden="true"></div>
           <span class="frame-counter" id="frame-counter"></span>
           <span class="scene-setting" id="scene-setting" hidden></span>
           <span class="paused-mark" id="paused-mark" hidden>ПАУЗА</span>
@@ -181,6 +182,7 @@ function render(): void {
     element('caption').setAttribute('aria-label', cue.text);
     element('title-card-eyebrow').textContent = cue.titleCard?.eyebrow ?? '';
     element('title-card-title').textContent = cue.titleCard?.title ?? '';
+    element('title-card').style.background = cue.blackout?.from === 1 && cue.blackout.to === 1 ? 'transparent' : '';
     element('scene-setting').textContent = cue.setting ?? '';
     element('frame-counter').textContent = `КАДР ${String(index + 1).padStart(2, '0')} / ${scene.cues.length}`;
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-cue]')) {
@@ -193,6 +195,7 @@ function render(): void {
   art.alt = visual.imageAlt;
   art.style.transform = `scale(${visual.camera.scale})`;
   art.style.transformOrigin = `${visual.camera.x}% ${visual.camera.y}%`;
+  element('scene-blackout').style.opacity = String(started ? blackoutAt(scene, timeline.time) : 0);
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
   element('subtitle').hidden = !started || !cue.text || timeline.time - cue.start < (cue.speechDelay ?? 0);

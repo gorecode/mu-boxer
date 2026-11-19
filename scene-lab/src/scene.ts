@@ -1,6 +1,6 @@
 import { planSpeech, type SpeechPlan, type Voice } from './speech.ts';
 
-export type Sound = 'ring' | 'ringback' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime';
+export type Sound = 'ring' | 'ringback' | 'receiver' | 'paper' | 'chair' | 'impact' | 'queue-chime' | 'siren';
 export interface Camera { scale: number; x: number; y: number }
 interface Shot {
   at: number;
@@ -24,6 +24,7 @@ export interface Cue {
   sounds?: { at: number; sound: Sound }[];
   fight?: boolean;
   flash?: boolean;
+  blackout?: { from: number; to: number };
   titleCard?: { eyebrow: string; title: string };
   setting?: string;
 }
@@ -54,6 +55,9 @@ export function compileScene(scene: Scene): CompiledScene {
     ids.add(cue.id);
     if (cue.titleCard && (!cue.titleCard.title.trim() || cue.fight)) throw new Error('Неверный титр');
     if (!Number.isFinite(cue.duration) || cue.duration <= 0) throw new Error('Неверная длительность кадра');
+    if (cue.blackout && ![cue.blackout.from, cue.blackout.to].every(value => Number.isFinite(value) && value >= 0 && value <= 1)) {
+      throw new Error('Неверное затемнение');
+    }
     validateCamera(cue.camera);
     if (cue.shots) {
       if (!cue.shots.length || cue.shots[0].at !== 0) throw new Error('Планы должны начинаться с нуля');
@@ -95,6 +99,13 @@ function validateCamera({ scale, x, y }: Camera): void {
 
 export function cueAt(scene: CompiledScene, time: number): TimedCue {
   return scene.cues.find((cue) => time < cue.end) ?? scene.cues[scene.cues.length - 1];
+}
+
+export function blackoutAt(scene: CompiledScene, time: number): number {
+  const cue = cueAt(scene, time);
+  if (!cue.blackout) return 0;
+  const progress = Math.max(0, Math.min(1, (time - cue.start) / cue.duration));
+  return cue.blackout.from + (cue.blackout.to - cue.blackout.from) * progress;
 }
 
 export function visualAt(scene: CompiledScene, time: number, reducedMotion = false): { image: string; imageAlt: string; camera: Camera } {

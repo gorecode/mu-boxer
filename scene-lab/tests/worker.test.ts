@@ -10,25 +10,25 @@ const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
 test('worker continues the prologue with isolated links and leaves the officer arrival intact', () => {
   assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'animator', 'slider', 'service', 'queue', 'bandit', 'epilogue']);
-  assert.equal(scene.duration, 23120);
+  assert.equal(scene.duration, 24420);
   assert.equal(scene.opponent, 'Рабочего');
   assert.deepEqual(readSceneLink(sceneLink(scene, 18900), scenes), { scene, time: 18900 });
   assert.equal(readSceneLink('#scene=worker&t=-1', scenes).time, 0);
   assert.equal(readSceneLink('#scene=worker&t=bad', scenes).time, 0);
-  assert.equal(readSceneLink('#scene=worker&t=999', scenes).time, 23120);
+  assert.equal(readSceneLink('#scene=worker&t=999', scenes).time, 24420);
   assert.equal(readSceneLink('', scenes).scene.id, 'intro');
   assert.equal(scenes.find((scene) => scene.id === 'prologue')!.duration, 27300);
-  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 30000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 31100);
 });
 
-test('the shorter thought and realization retain serious voices and readable holds', () => {
+test('the approved self-exoneration stays serious with readable holds', () => {
   assert.deepEqual(scene.cues.filter((cue) => cue.text).map((cue) => [cue.speaker, cue.text]), [
     ['Боксёр · рассказ', 'Но путь мне перегородил рабочий.'],
     ['Боксёр', 'Мне к участковому.'], ['Рабочий', 'Обходи.'],
     ['Боксёр', 'Так вот же дверь.'], ['Рабочий', 'А вот же лента.'],
-    ['Боксёр · про себя', 'У меня не было времени обходить.'],
-    ['Боксёр · про себя', 'И я понял…'],
-    ['Боксёр · про себя', 'ДРАКА НЕИЗБЕЖНА!'],
+    ['Боксёр · про себя', 'Я сам шёл к участковому.'],
+    ['Боксёр · про себя', 'Но даже туда меня не хотели пускать.'],
+    ['Боксёр · про себя', 'Придётся подвинуться.'],
   ]);
   for (const cue of scene.cues.filter((cue) => cue.text)) {
     assert.ok(cue.speech.duration < cue.duration, cue.id);
@@ -41,7 +41,7 @@ test('the shorter thought and realization retain serious voices and readable hol
   assert.ok(named('realization').duration - named('realization').speech.duration >= 400);
 });
 
-test('the angry closeup and pullback use the same courtyard drawing with no separate portrait', () => {
+test('the stance and final line reuse the courtyard drawing without a separate portrait', () => {
   assert.deepEqual(sceneImages(scene).map((src) => src.split('/').at(-1)), [
     'worker-wide-v2.webp', 'worker-boxer-point-v2.webp', 'worker-tape-v2.webp', 'worker-ready-v2.webp',
   ]);
@@ -53,7 +53,7 @@ test('the angry closeup and pullback use the same courtyard drawing with no sepa
   assert.deepEqual(visualAt(scene, flash.end - 1).camera, visualAt(scene, inevitable.start).camera);
 });
 
-test('dialogue and the angry pullback preserve the complete head with visible headroom', () => {
+test('dialogue and the final stance preserve the complete head with visible headroom', () => {
   for (const [id, bounds] of [
     ['request', { left: .19, right: .29, top: .04, bottom: .24 }],
     ['door', { left: .19, right: .29, top: .04, bottom: .24 }],
@@ -71,26 +71,22 @@ test('dialogue and the angry pullback preserve the complete head with visible he
   }
 });
 
-test('inevitable fight pulls back during speech and settles before the fight title', () => {
-  const cue = named('inevitable'), fight = named('fight');
-  const close = visualAt(scene, cue.start), middle = visualAt(scene, cue.start + 900);
-  const full = visualAt(scene, cue.start + 1600);
-  assert.ok(close.camera.scale > middle.camera.scale && middle.camera.scale > full.camera.scale);
-  assert.equal(full.camera.scale, 1);
-  assert.ok(subtitleAt(cue.speech, 900).length > 0);
-  assert.ok(cue.speech.duration >= 1600);
-  assert.deepEqual(visualAt(scene, cue.start + 900, true).camera, close.camera);
-  assert.deepEqual(visualAt(scene, cue.start + 1600, true).camera, full.camera);
-  assert.deepEqual(visualAt(scene, cue.end - 1).camera, full.camera);
-  assert.ok(cue.duration - cue.speech.duration >= 1000);
-  assert.equal(cue.end, fight.start);
-  assert.deepEqual(visualAt(scene, cue.end - 1).camera, visualAt(scene, fight.start).camera);
-  assert.equal(scene.cues.filter((cue) => cue.fight).length, 1);
-  assert.equal(scene.cues.at(-1), fight);
-  assert.equal(fight.text, '');
+test('the stance is already wide after the flash and the calm last line holds before the title', () => {
+  const last = named('inevitable'), flash = named('flash'), fight = named('fight');
+  assert.equal(flash.end, last.start);
+  assert.equal(last.end, fight.start);
+  for (const time of [flash.start, last.start, last.start + 900, last.end - 1, fight.start]) {
+    assert.equal(visualAt(scene, time).camera.scale, 1);
+    assert.match(visualAt(scene, time).image, /worker-ready-v2.webp$/);
+    assert.deepEqual(visualAt(scene, time, true), visualAt(scene, time));
+  }
+  assert.ok(last.duration - last.speech.duration >= 700);
+  assert.equal(cueAt(scene, last.end - 1).fight, undefined);
+  assert.equal(fight.fight, true);
+  assert.equal(scene.cues.filter(cue => cue.fight).length, 1);
 });
 
-test('one brief silent flash separates realization from the pullback at exact boundaries', () => {
+test('one brief silent flash separates the thought from the stance at exact boundaries', () => {
   const realization = named('realization'), flash = named('flash'), inevitable = named('inevitable');
   assert.equal(realization.end, flash.start);
   assert.equal(flash.duration, 120);
@@ -105,7 +101,7 @@ test('one brief silent flash separates realization from the pullback at exact bo
   assert.equal(scene.cues.filter((cue) => cue.flash).length, 1);
 });
 
-test('pause during the pullback freezes framing; completion and replay preserve the final pose', () => {
+test('pause during the final line freezes framing; completion and replay preserve the final pose', () => {
   const player = new Timeline(scene);
   assert.equal(player.playing, false);
   player.seek(named('inevitable').start + 700); player.play(); player.pause();

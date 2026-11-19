@@ -10,15 +10,16 @@ const cue = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 test('MFC clue, destroyed office exit and Boxer-only introduction precede the leaflet offer', () => {
   assert.ok(scene);
   assert.equal(scenes[scenes.indexOf(scene) - 1].id, 'precinct');
-  assert.equal(scene.duration, 38400);
+  assert.equal(scene.duration, 41600);
   assert.equal(scene.opponent, 'Аниматора');
-  assert.match(visualAt(scene, 0).image, /animator-memo-v2.webp$/);
-  assert.equal(cueAt(scene, 3599).id, 'memo');
-  assert.match(visualAt(scene, 3600).image, /animator-exit-v2.webp$/);
-  assert.match(visualAt(scene, 6600).image, /animator-solo-v1.webp$/);
-  assert.match(visualAt(scene, 8599).image, /animator-solo-v1.webp$/);
-  assert.match(visualAt(scene, 8600).image, /animator-wide-v2.webp$/);
-  assert.equal(cueAt(scene, 8600).id, 'interruption');
+  assert.match(visualAt(scene, 0).image, /animator-exit-v2.webp$/);
+  assert.equal(cueAt(scene, 4599).id, 'officer-aftermath');
+  assert.match(visualAt(scene, 4600).image, /animator-memo-v2.webp$/);
+  assert.match(visualAt(scene, 8200).image, /animator-exit-v2.webp$/);
+  assert.match(visualAt(scene, 11200).image, /animator-solo-v1.webp$/);
+  assert.match(visualAt(scene, 13199).image, /animator-solo-v1.webp$/);
+  assert.match(visualAt(scene, 13200).image, /animator-wide-v2.webp$/);
+  assert.equal(cueAt(scene, 13200).id, 'interruption');
   assert.ok(subtitleAt(cue('interruption').speech, 2000).length > 0);
   assert.deepEqual(readSceneLink(sceneLink(scene, 24000), scenes), { scene, time: 24000 });
   for (const [seconds, expected] of [['-1', 0], ['NaN', 0], ['999', scene.duration]] as const) {
@@ -27,12 +28,12 @@ test('MFC clue, destroyed office exit and Boxer-only introduction precede the le
   assert.equal(readSceneLink('', scenes).scene.id, 'intro');
 });
 
-test('shorter approved words stay calm; the leaflet reading starts after a silent pause', () => {
+test('approved words stay calm; the leaflet is silent and the rabbit pauses before its gesture', () => {
   assert.deepEqual(scene.cues.filter((cue) => cue.text).map((cue) => cue.text), [
-    'Я узнал, куда мне нужно.', 'Я направился в МФЦ.', 'Но меня остановил ушастый зазывала.',
-    'Где здесь МФЦ?', 'Приведи друга — получи подарок.', 'Моего друга убили.', 'Тебе смешно?',
-    'Я ничего плохого ему не сказал.', 'А он уже поднял на меня руку.',
-    'Он вынудил меня защищаться.',
+    'Он знал куда мне нужно, но не сказал.', 'Пришлось узнать самому.', 'Я направился в МФЦ.', 'Но меня остановил ушастый зазывала.',
+    'Где здесь МФЦ?', 'Моего друга убили.', 'Тебе смешно?',
+    'Я спросил: тебе смешно?', 'Но он уже поднял на меня руку.',
+    'Чем вынудил меня защищаться.',
   ]);
   for (const spoken of scene.cues.filter((cue) => cue.text)) {
     assert.equal(spoken.voice, 'boxer');
@@ -40,10 +41,15 @@ test('shorter approved words stay calm; the leaflet reading starts after a silen
     assert.equal(subtitleAt(spoken.speech, spoken.duration - 1), spoken.text);
     assert.ok(spoken.duration - spoken.speech.duration >= 300);
   }
-  assert.equal(cue('leaflet').speechDelay, 800);
-  assert.equal(subtitleAt(cue('leaflet').speech, 799), '');
-  assert.equal(subtitleAt(cue('leaflet').speech, 899), '');
-  assert.ok(subtitleAt(cue('leaflet').speech, 1100).length > 0);
+  assert.equal(cue('leaflet').speech.duration, 0);
+  assert.equal(cue('leaflet').text, '');
+  assert.equal(cue('leaflet').voice, undefined);
+  assert.ok(cue('leaflet').duration >= 3000);
+  assert.equal(cue('command').end, cue('no-reaction').start);
+  assert.equal(cue('no-reaction').end, cue('gesture').start);
+  assert.ok(cue('no-reaction').duration >= 1000);
+  assert.match(visualAt(scene, cue('no-reaction').start).image, /animator-wide-v2.webp$/);
+  assert.equal(cue('gesture').text, 'Я спросил: тебе смешно?');
 });
 
 test('unchanged offered leaflet and smile hold after the death line before the question', () => {
@@ -65,7 +71,7 @@ test('thought and anger hold until final art, fight title and brief flash start 
   const normal = visualAt(scene, cue('gesture').start);
   assert.equal(normal.camera.scale, 1);
   assert.match(normal.image, /animator-gesture-v2.webp$/);
-  for (const id of ['innocent', 'raised-hand']) {
+  for (const id of ['gesture', 'raised-hand']) {
     const current = cue(id);
     assert.equal(visualAt(scene, current.start).image, normal.image);
     assert.deepEqual(visualAt(scene, current.start).camera, normal.camera);
@@ -83,7 +89,7 @@ test('thought and anger hold until final art, fight title and brief flash start 
   assert.equal(cueAt(scene, forced.end).id, 'settle');
   assert.match(visualAt(scene, forced.end).image, /animator-ready-v2.webp$/);
   const flash = cue('fight-flash'), fight = cue('fight');
-  assert.equal(flash.start, 35900);
+  assert.equal(flash.start, 39100);
   assert.match(visualAt(scene, flash.start - 1).image, /animator-ready-v2.webp$/);
   assert.match(visualAt(scene, flash.start).image, /animator-final-v2.webp$/);
   assert.equal(cueAt(scene, flash.start - 1).fight, undefined);
@@ -94,7 +100,7 @@ test('thought and anger hold until final art, fight title and brief flash start 
   assert.equal(cueAt(scene, flash.end - 1).flash, true);
   assert.equal(fight.flash, undefined);
   assert.equal(fight.fight, true);
-  assert.deepEqual(scene.events, [{ time: 100, sound: 'paper' }, { time: 12500, sound: 'paper' }, { time: 35900, sound: 'impact' }]);
+  assert.deepEqual(scene.events, [{ time: 4700, sound: 'paper' }, { time: 17100, sound: 'paper' }, { time: 39100, sound: 'impact' }]);
   assert.equal(scene.cues.some((cue) => cue.id === 'brick'), false);
   assert.equal(scene.cues.at(-1)!.fight, true);
   assert.equal(scene.cues.filter((cue) => cue.fight).length, 2);
