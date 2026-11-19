@@ -43,7 +43,7 @@ test('switching scenes pauses real audio, resets position and restores the selec
       constructor() { super(); browser.sceneContexts.push(this); }
     };
   });
-  await page.goto('./#scene=precinct&t=16.4');
+  await page.goto('./#scene=precinct&t=22.4');
   await page.getByRole('button', { name: 'Смотреть с этого момента', exact: true }).click();
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('queue');
   await expect(page.locator('#scrub')).toHaveValue('0');
@@ -57,9 +57,9 @@ test('switching scenes pauses real audio, resets position and restores the selec
   await expect.poll(() => page.evaluate(() => (window as unknown as Window & { sceneContexts: AudioContext[] }).sceneContexts[0].state)).toBe('running');
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('precinct');
   await expect(page.locator('#story-intro')).toHaveText('Мне только\nсправку получить.');
-  await expect(page.locator('#story-duration')).toContainText('24 с');
+  await expect(page.locator('#story-duration')).toContainText('30 с');
   await expect(page.locator('#scrub')).toHaveValue('0');
-  await expect(page.locator('#art')).toHaveAttribute('src', /precinct-idle.webp$/);
+  await expect(page.locator('#art')).toHaveAttribute('src', /worker-aftermath-v2.webp$/);
   expect(await page.evaluate(() => (window as unknown as Window & { sceneContexts: AudioContext[] }).sceneContexts.length)).toBe(1);
 });
 
@@ -72,7 +72,7 @@ test('a missing later queue panel blocks start and another scene can still be re
   await page.getByLabel('СЦЕНА', { exact: true }).selectOption('precinct');
   await expect(page.locator('#start')).toBeEnabled();
   await expect(page.locator('#status')).not.toContainText('Не удалось загрузить иллюстрацию');
-  await expect(page.locator('#art')).toHaveAttribute('src', /precinct-idle.webp$/);
+  await expect(page.locator('#art')).toHaveAttribute('src', /worker-aftermath-v2.webp$/);
 });
 
 test('cross-scene hash links preserve the chosen playback speed in the actual timeline', async ({ page }) => {

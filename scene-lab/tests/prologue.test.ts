@@ -9,7 +9,7 @@ const scene = scenes.find((scene) => scene.id === 'prologue')!;
 const named = (id: string) => scene.cues.find((cue) => cue.id === id)!;
 
 test('prologue follows the recap in the review list and has isolated seekable links', () => {
-  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'precinct', 'queue']);
+  assert.deepEqual(scenes.map((scene) => scene.id), ['intro', 'prologue', 'worker', 'precinct', 'queue']);
   assert.equal(readSceneLink('', scenes).scene.id, 'intro');
   assert.equal(scene.duration, 27300);
   assert.deepEqual(readSceneLink(sceneLink(scene, 24500), scenes), { scene, time: 24500 });
@@ -17,7 +17,7 @@ test('prologue follows the recap in the review list and has isolated seekable li
   assert.equal(readSceneLink('#scene=prologue&t=-1', scenes).time, 0);
   assert.equal(readSceneLink('#scene=prologue&t=NaN', scenes).time, 0);
   assert.equal(scenes.find((scene) => scene.id === 'intro')!.duration, 64254);
-  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 24000);
+  assert.equal(scenes.find((scene) => scene.id === 'precinct')!.duration, 30000);
 });
 
 test('the approved setup uses only calm boxer narration and ends before an encounter', () => {

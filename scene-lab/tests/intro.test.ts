@@ -10,13 +10,13 @@ const named = (id: string) => intro.cues.find((cue) => cue.id === id)!;
 
 test('the narrated intro opens by default and retains links to the other scenes', () => {
   assert.equal(intro.id, 'intro');
-  assert.equal(scenes.length, 4);
+  assert.equal(scenes.length, 5);
   assert.deepEqual(readSceneLink('', scenes), { scene: intro, time: 0 });
   assert.deepEqual(readSceneLink('#scene=unknown&t=30', scenes), { scene: intro, time: 0 });
   assert.equal(readSceneLink('#scene=intro&t=NaN', scenes).time, 0);
   assert.equal(readSceneLink('#scene=intro&t=999', scenes).time, intro.duration);
   assert.equal(readSceneLink(sceneLink(intro, 29000), scenes).time, 29000);
-  for (const [id, duration] of [['precinct', 24000], ['queue', 27000]] as const) {
+  for (const [id, duration] of [['precinct', 30000], ['queue', 27000]] as const) {
     const linked = readSceneLink(`#scene=${id}&t=2`, scenes);
     assert.equal(linked.scene.id, id);
     assert.equal(linked.scene.duration, duration);
