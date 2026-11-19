@@ -60,7 +60,7 @@ test('unchanged offered leaflet and smile hold after the death line before the q
   assert.equal(question.text, 'Тебе смешно?');
 });
 
-test('thought and anger keep the same wide framing, then cut directly to the final stance', () => {
+test('thought and anger hold until final art, fight title and brief flash start together', () => {
   const thought = cue('raised-hand'), reaction = cue('reaction'), forced = cue('forced');
   const normal = visualAt(scene, cue('gesture').start);
   assert.equal(normal.camera.scale, 1);
@@ -81,10 +81,23 @@ test('thought and anger keep the same wide framing, then cut directly to the fin
   }
   assert.ok(forced.duration - forced.speech.duration >= 600);
   assert.equal(cueAt(scene, forced.end).id, 'settle');
-  assert.match(visualAt(scene, forced.end).image, /animator-final-v2.webp$/);
+  assert.match(visualAt(scene, forced.end).image, /animator-ready-v2.webp$/);
+  const flash = cue('fight-flash'), fight = cue('fight');
+  assert.equal(flash.start, 35900);
+  assert.match(visualAt(scene, flash.start - 1).image, /animator-ready-v2.webp$/);
+  assert.match(visualAt(scene, flash.start).image, /animator-final-v2.webp$/);
+  assert.equal(cueAt(scene, flash.start - 1).fight, undefined);
+  assert.equal(flash.fight, true);
+  assert.equal(flash.flash, true);
+  assert.equal(flash.duration, 120);
+  assert.equal(flash.end, fight.start);
+  assert.equal(cueAt(scene, flash.end - 1).flash, true);
+  assert.equal(fight.flash, undefined);
+  assert.equal(fight.fight, true);
+  assert.deepEqual(scene.events, [{ time: 100, sound: 'paper' }, { time: 12500, sound: 'paper' }, { time: 35900, sound: 'impact' }]);
   assert.equal(scene.cues.some((cue) => cue.id === 'brick'), false);
   assert.equal(scene.cues.at(-1)!.fight, true);
-  assert.equal(scene.cues.filter((cue) => cue.fight).length, 1);
+  assert.equal(scene.cues.filter((cue) => cue.fight).length, 2);
   assert.deepEqual(visualAt(scene, cue('settle').start).camera, visualAt(scene, scene.duration).camera);
   assert.equal(sceneImages(scene).length, 8);
   assert.equal(sceneImages(scene).some((src) => /animator-(brick|wide|gesture|ready|final)-v1/.test(src)), false);
