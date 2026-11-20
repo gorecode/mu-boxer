@@ -1,24 +1,15 @@
 import { fighterGeometry, overlaps } from './geometry.ts';
 
-export type Attack = 'jab' | 'heavy' | 'low' | 'upper' | 'poke' | 'sweep' | 'overhead';
+import { moves, type Attack, type Move } from './moves.ts';
+export { moves, type Attack, type Move } from './moves.ts';
 export type Phase = 'menu' | 'countdown' | 'fighting' | 'paused' | 'win' | 'loss' | 'draw';
 export type Difficulty = 'warmup' | 'street';
-export interface Input { left: boolean; right: boolean; down: boolean; block: boolean; jump: boolean; light: boolean; heavy: boolean; attackPressed?: 'jab' | 'heavy' | 'low' | 'upper' }
+export interface Input { left: boolean; right: boolean; down: boolean; block: boolean; jump: boolean; light: boolean; heavy: boolean; dodge?: boolean; attackPressed?: 'jab' | 'heavy' | 'low' | 'upper' }
 export const idleInput = (): Input => ({ left: false, right: false, down: false, block: false, jump: false, light: false, heavy: false });
-export interface Move { windup: number; active: number; recovery: number; range: number; damage: number; level: 'high' | 'mid' | 'low' | 'overhead'; push: number; hitstun: number; stop: [number, number]; reaction: 'light' | 'heavy' | 'launch' | 'down'; lift: number }
-export const moves: Record<Attack, Move> = {
-  jab: { windup: .1, active: .09, recovery: .18, range: 320, damage: 8, level: 'mid', push: 18, hitstun: .4, stop: [.04, .065], reaction: 'light', lift: 0 },
-  heavy: { windup: .25, active: .12, recovery: .36, range: 250, damage: 20, level: 'mid', push: 60, hitstun: .42, stop: [.065, .09], reaction: 'heavy', lift: 0 },
-  low: { windup: .17, active: .1, recovery: .3, range: 235, damage: 10, level: 'low', push: 25, hitstun: .38, stop: [.04, .065], reaction: 'light', lift: 0 },
-  upper: { windup: .2, active: .12, recovery: .4, range: 250, damage: 23, level: 'overhead', push: 55, hitstun: .6, stop: [.07, .10], reaction: 'launch', lift: 620 },
-  poke: { windup: .4, active: .12, recovery: .42, range: 320, damage: 12, level: 'high', push: 38, hitstun: .36, stop: [.045, .07], reaction: 'light', lift: 0 },
-  sweep: { windup: .65, active: .14, recovery: .62, range: 345, damage: 17, level: 'low', push: 65, hitstun: .65, stop: [.055, .085], reaction: 'down', lift: 0 },
-  overhead: { windup: .76, active: .12, recovery: .66, range: 280, damage: 22, level: 'overhead', push: 65, hitstun: .5, stop: [.075, .1], reaction: 'heavy', lift: 0 },
-};
 export interface Fighter {
   x: number; y: number; vy: number; velocity: number; facing: 1 | -1;
   hp: number; maxHp: number; guard: number; crouch: boolean; blocking: boolean;
-  stun: number; invulnerable: number; action: { kind: Attack; time: number; connected: boolean; result?: 'hit' | 'block'; chain?: number } | null;
+  guardDelay: number; dodge: number; dodgeCooldown: number; dodgeDirection: number; stun: number; invulnerable: number; action: { kind: Attack; time: number; connected: boolean; result?: 'hit' | 'block'; chain?: number; lunge?: number } | null;
   travel: number; hurt: number; stop: number; knockback: number; reaction: Move['reaction'] | 'guard' | null;
 }
 export interface FightEvent { type: 'hit' | 'block' | 'break' | 'miss' | 'jump' | 'land' | 'start' | 'finish'; target: 'player' | 'worker'; x: number; y: number; power: number; attack?: Attack; direction?: number }
@@ -27,15 +18,17 @@ export interface Fight {
   player: Fighter; worker: Fighter; time: number; remaining: number; countdown: number;
   hitstop: number; aiWait: number; aiTurn: number; combo: number; comboTime: number;
   hits: number; blocked: number; events: FightEvent[];
-  held: Input; buffered: { kind: Attack | 'jump'; remaining: number } | null; comboActive: boolean;
+  training: { enabled: boolean; dummy: 'idle' | 'guard' | 'after-hit' | 'cpu'; firstHit: boolean; gap: boolean };
+  brain: { timer: number; decisions: number; intent: 'approach' | 'retreat' | 'guard' | 'attack' | 'punish'; low: boolean; observedAttack: Attack | null; observedDistance: number; recovering: boolean };
+  held: Input; buffered: { kind: Attack | 'jump' | 'dodge'; remaining: number } | null; comboActive: boolean;
 }
 function fighter(x: number, hp: number, facing: 1 | -1): Fighter {
   return { x, y: 0, vy: 0, velocity: 0, facing, hp, maxHp: hp, guard: 100, crouch: false, blocking: false,
-    stun: 0, invulnerable: 0, action: null, travel: 0, hurt: 0, stop: 0, knockback: 0, reaction: null };
+    guardDelay: 0, dodge: 0, dodgeCooldown: 0, dodgeDirection: 0, stun: 0, invulnerable: 0, action: null, travel: 0, hurt: 0, stop: 0, knockback: 0, reaction: null };
 }
-export function createFight(difficulty: Difficulty = 'street'): Fight {
+export function createFight(difficulty: Difficulty = 'street', training = false): Fight {
   return { phase: 'menu', resume: 'countdown', difficulty, player: fighter(430, 100, 1), worker: fighter(1170, 120, -1),
-    time: 0, remaining: 90, countdown: 1.6, hitstop: 0, aiWait: .65, aiTurn: 0, combo: 0, comboTime: 0, hits: 0, blocked: 0, events: [], held: idleInput(), buffered: null, comboActive: false };
+    time: 0, remaining: 90, countdown: 1.6, hitstop: 0, aiWait: .65, aiTurn: 0, combo: 0, comboTime: 0, hits: 0, blocked: 0, events: [], training: { enabled: training, dummy: 'idle', firstHit: false, gap: false }, brain: { timer: difficulty === 'warmup' ? .32 : .18, decisions: 0, intent: 'approach', low: false, observedAttack: null, observedDistance: 740, recovering: false }, held: idleInput(), buffered: null, comboActive: false };
 }
 export function startFight(fight: Fight): void { if (fight.phase === 'menu') fight.phase = 'countdown'; }
 export function pauseFight(fight: Fight): void {
@@ -55,7 +48,9 @@ function begin(f: Fighter, kind: Attack): void {
 function body(f: Fighter, dt: number, s: Fight, name: 'player' | 'worker'): boolean {
   if (f.stop > 0) { f.stop = Math.max(0, f.stop - dt); return false; }
   f.stun = Math.max(0, f.stun - dt); f.invulnerable = Math.max(0, f.invulnerable - dt); f.hurt = Math.max(0, f.hurt - dt);
-  f.guard = clamp(f.guard + dt * (f.blocking ? 5 : 27), 0, 100);
+  f.guardDelay = Math.max(0, f.guardDelay - dt);
+  if (f.guardDelay === 0 && !f.blocking && f.stun <= 0) f.guard = clamp(f.guard + dt * 27, 0, 100);
+  f.dodge = Math.max(0, f.dodge - dt); f.dodgeCooldown = Math.max(0, f.dodgeCooldown - dt);
   if (f.y > 0 || f.vy > 0) {
     f.vy -= 1750 * dt; f.y = Math.max(0, f.y + f.vy * dt);
     if (f.y === 0) { f.vy = 0; emit(s, 'land', name); }
@@ -85,12 +80,13 @@ function readInput(s: Fight, input: Input, dt: number): void {
     s.buffered.remaining -= dt;
     if (s.buffered.remaining <= 0) s.buffered = null;
   }
-  let kind: Attack | 'jump' | undefined;
+  let kind: Attack | 'jump' | 'dodge' | undefined;
   if (input.jump && !s.held.jump) kind = 'jump';
   const crouch = input.down && s.player.y === 0;
   if (input.light && !s.held.light) kind = crouch ? 'low' : 'jab';
   if (input.heavy && !s.held.heavy) kind = crouch ? 'upper' : 'heavy';
   if (input.attackPressed) kind = input.attackPressed;
+  if (input.dodge && !s.held.dodge) kind = 'dodge';
   if (kind) s.buffered = { kind, remaining: BUFFER_TIME };
   s.held = { ...input };
 }
@@ -99,9 +95,15 @@ function control(s: Fight, input: Input, dt: number): void {
   p.crouch = input.down && p.y === 0 && p.stun <= 0 && !p.reaction;
   p.blocking = input.block && p.y === 0 && !p.action && p.stun <= 0 && !p.reaction;
   if (p.stun > 0 || p.reaction) { p.blocking = false; p.crouch = false; return; }
+  if (p.dodge > 0) { p.blocking = false; p.crouch = false; move(p, p.dodgeDirection * 500, dt); return; }
   const requested = s.buffered?.kind;
   if (requested && !p.blocking) {
-    if (requested === 'jump') {
+    if (requested === 'dodge') {
+      if (p.y === 0 && !p.action && p.dodgeCooldown <= 0) {
+        p.dodge = .18; p.dodgeCooldown = .65; p.dodgeDirection = -p.facing; p.invulnerable = Math.max(p.invulnerable, .08);
+        p.crouch = false; s.buffered = null;
+      }
+    } else if (requested === 'jump') {
       if (p.y === 0 && !p.action) {
         p.vy = 950; p.y = .1; p.crouch = false; emit(s, 'jump', 'player'); s.buffered = null;
       }
@@ -112,31 +114,55 @@ function control(s: Fight, input: Input, dt: number): void {
         a.time <= moves[a.kind].windup + moves[a.kind].active + .12 && allowed[a.kind]?.includes(requested);
       if (!a || cancel) {
         const chain = cancel && a ? (a.chain ?? 0) + 1 : 0;
-        p.action = { kind: requested, time: 0, connected: false, chain };
+        const lunge = cancel && p.y === 0 && s.worker.y === 0 && (s.worker.x - p.x) * p.facing > 0
+          ? clamp(Math.abs(s.worker.x - p.x) + Math.abs(s.worker.knockback) / 12 - moves[requested].range + 20, 24, 120) : 0;
+        p.action = { kind: requested, time: 0, connected: false, chain, lunge };
         p.blocking = false; p.velocity = 0; s.buffered = null;
       }
     }
   }
   const direction = Number(input.right) - Number(input.left);
   const follow = p.action && (p.action.chain ?? 0) > 0 && p.action.time < .08;
-  move(p, follow ? p.facing * 300 : p.action || p.blocking || p.crouch ? 0 : direction * (p.y > 0 ? 245 : 355), dt);
+  move(p, follow ? p.facing * (p.action!.lunge ?? 24) / .08 : p.action || p.blocking || p.crouch ? 0 : direction * (p.y > 0 ? 245 : 355), dt);
 }
 function ai(s: Fight, dt: number): void {
-  const w = s.worker, p = s.player, distance = Math.abs(p.x - w.x);
+  const w = s.worker, p = s.player, brain = s.brain;
   w.blocking = false; w.crouch = false; w.velocity = 0;
   if (w.action || w.stun > 0 || w.reaction) return;
-  s.aiWait -= dt;
-  const sign = Math.sign(p.x - w.x);
-  if (distance > 280) move(w, sign * (s.difficulty === 'warmup' ? 115 : 160), dt);
-  else if (distance < 165 && s.aiWait > .15) move(w, -sign * 100, dt);
-  if (p.action && distance < 280 && s.aiTurn % 4 === 3 && s.aiWait > .15) {
-    w.blocking = true; w.crouch = p.action.kind === 'low';
+  if (s.training.enabled && s.training.dummy !== 'cpu') {
+    w.blocking = s.training.dummy === 'guard' || s.training.dummy === 'after-hit' && s.training.firstHit;
+    w.crouch = w.blocking && p.action?.kind === 'low';
+    return;
   }
-  if (s.aiWait <= 0 && distance <= 340) {
+  s.aiWait -= dt; brain.timer -= dt;
+  if (brain.timer <= 0) {
+    brain.timer = s.difficulty === 'warmup' ? .32 : .18;
+    brain.decisions++;
+    const distance = brain.observedDistance, recovering = brain.recovering;
+    const mistake = brain.decisions % (s.difficulty === 'warmup' ? 3 : 7) === 0;
+    brain.intent = distance > 285 ? 'approach' : distance < 175 ? 'retreat'
+      : brain.observedAttack && !recovering && !mistake ? 'guard' : recovering && !mistake ? 'punish' : 'attack';
+    brain.low = brain.observedAttack === 'low';
+    const action = p.action;
+    brain.observedDistance = Math.abs(p.x - w.x);
+    brain.observedAttack = action && action.time >= .06 ? action.kind : null;
+    brain.recovering = !!action && action.time > moves[action.kind].windup + moves[action.kind].active;
+  }
+  const sign = Math.sign(p.x - w.x);
+  if (brain.intent === 'approach' && Math.abs(p.x - w.x) > 280) move(w, sign * (s.difficulty === 'warmup' ? 115 : 160), dt);
+  else if (brain.intent === 'retreat' && Math.abs(p.x - w.x) < 210) move(w, -sign * 100, dt);
+  else if (brain.intent === 'guard') { w.blocking = true; w.crouch = brain.low; }
+  if (!w.blocking && s.aiWait <= 0 && Math.abs(p.x - w.x) <= 340) {
     const pattern: Attack[] = ['poke', 'sweep', 'poke', 'overhead', 'sweep', 'overhead'];
-    begin(w, pattern[s.aiTurn % pattern.length]); s.aiTurn++;
+    begin(w, brain.intent === 'punish' ? 'poke' : pattern[s.aiTurn % pattern.length]); s.aiTurn++;
     s.aiWait = s.difficulty === 'warmup' ? 1.2 : .46;
   }
+}
+export function copyTraining(s: Fight): Fight {
+  if (!s.training.enabled || s.phase !== 'fighting') throw new Error('Сохранение доступно только в активной тренировке.');
+  const copy = structuredClone(s);
+  copy.held = idleInput(); copy.buffered = null; copy.events = [];
+  return copy;
 }
 interface Contact {
   from: 'player' | 'worker'; to: 'player' | 'worker'; kind: Attack; direction: 1 | -1;
@@ -163,7 +189,8 @@ function applyContact(s: Fight, c: Contact): void {
     type, target: c.to, x: c.x, y: c.y, power, attack: c.kind, direction: c.direction,
   });
   if (c.defended) {
-    b.guard = Math.max(0, b.guard - (m.damage + 13));
+    b.guard = Math.max(0, b.guard - (m.damage + 13)); b.guardDelay = .65;
+    if (s.training.enabled && c.to === 'worker' && s.training.firstHit) s.training.gap = true;
     s.blocked += c.to === 'player' ? 1 : 0;
     if (b.guard === 0) {
       b.blocking = false; b.stun = .8; b.action = null; b.hurt = .35; b.reaction = 'heavy';
@@ -174,12 +201,13 @@ function applyContact(s: Fight, c: Contact): void {
     return;
   }
   const damage = Math.ceil(m.damage * (c.from === 'worker' && s.difficulty === 'warmup' ? .65 : 1) * (1 - c.chain * .15));
-  b.hp = Math.max(0, b.hp - damage); b.stun = m.hitstun;
+  b.hp = Math.max(s.training.enabled ? 1 : 0, b.hp - damage); b.stun = m.hitstun; b.dodge = 0;
   b.hurt = .28; b.invulnerable = .19; b.action = null; b.blocking = false; b.crouch = false;
   b.reaction = m.reaction; b.knockback = c.direction * m.push * 12;
   if (m.lift) { b.vy = m.lift; b.y = Math.max(.1, b.y); }
   a.stop = Math.max(a.stop, m.stop[0]); b.stop = Math.max(b.stop, m.stop[1]);
   if (c.to === 'worker') {
+    if (s.training.enabled) s.training.firstHit = true;
     s.hits++; s.combo = c.continuing ? s.combo + 1 : 1; s.comboTime = 1.05; s.comboActive = true;
   } else { s.comboActive = false; s.combo = 0; }
   event('hit', damage);
@@ -194,10 +222,10 @@ function separate(s: Fight): void {
 }
 function finish(s: Fight): void {
   const p = s.player, w = s.worker;
-  if (p.hp > 0 && w.hp > 0 && s.remaining > 0) return;
+  if (s.training.enabled || p.hp > 0 && w.hp > 0 && s.remaining > 0) return;
   const delta = p.hp / p.maxHp - w.hp / w.maxHp;
   s.phase = delta > 0 ? 'win' : delta < 0 ? 'loss' : 'draw';
-  for (const f of [p, w]) { f.action = null; f.blocking = false; f.velocity = 0; f.y = 0; f.vy = 0; f.crouch = false; f.stop = 0; f.knockback = 0; f.reaction = null; }
+  for (const f of [p, w]) { f.action = null; f.blocking = false; f.velocity = 0; f.y = 0; f.vy = 0; f.crouch = false; f.stop = 0; f.knockback = 0; f.reaction = null; f.dodge = 0; }
   s.buffered = null; s.held = idleInput(); s.hitstop = 0;
   emit(s, 'finish', s.phase === 'win' ? 'worker' : 'player');
 }
@@ -213,7 +241,7 @@ export function stepFight(s: Fight, input: Input, dt: number): void {
   readInput(s, input, dt);
   const frozen = s.hitstop > 0;
   s.hitstop = Math.max(0, s.hitstop - dt);
-  if (!frozen) { s.time += dt; s.remaining = Math.max(0, s.remaining - dt); s.comboTime = Math.max(0, s.comboTime - dt); }
+  if (!frozen) { s.time += dt; if (!s.training.enabled) s.remaining = Math.max(0, s.remaining - dt); s.comboTime = Math.max(0, s.comboTime - dt); }
   const playerReady = body(s.player, dt, s, 'player'), workerReady = body(s.worker, dt, s, 'worker');
   if (s.worker.stun <= 0 && s.worker.stop <= 0) s.comboActive = false;
   if (playerReady) control(s, input, dt);

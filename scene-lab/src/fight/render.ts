@@ -1,3 +1,4 @@
+import { celAt } from './moves.ts';
 import { fighterGeometry } from './geometry.ts';
 import { moves, type Fight, type Fighter, type FightEvent } from './model.ts';
 
@@ -81,18 +82,8 @@ export class FightRenderer {
     if (f.reaction === 'guard') return worker ? 5 : f.crouch ? 5 : 4;
     if (f.reaction === 'down') return 11;
     if (f.reaction || f.hurt > 0) return 6;
-    if (f.action) {
-      const { kind, time } = f.action, m = moves[kind];
-      if (time < m.windup) {
-        if (worker) return kind === 'poke' ? 1 : 3;
-        return kind === 'upper' || kind === 'low' ? 5 : kind === 'heavy' ? 4 : 0;
-      }
-      if (time < m.windup + m.active + .09) {
-        if (worker) return kind === 'sweep' ? 9 : kind === 'overhead' ? 8 : 2;
-        return kind === 'upper' ? 9 : kind === 'low' ? 8 : kind === 'heavy' ? 3 : 2;
-      }
-      return worker ? 7 : 0;
-    }
+    if (f.action) return celAt(f.action.kind, f.action.time).cel.pose;
+    if (f.dodge > 0) return 7;
     if (f.blocking) return worker ? 5 : f.crouch ? 5 : 4;
     if (f.crouch) return worker ? 7 : 5;
     if (f.y > 0) return worker ? 7 : 7;

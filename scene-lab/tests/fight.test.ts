@@ -7,7 +7,7 @@ function advance(s: Fight, seconds: number, input: Partial<Input> = {}): void {
   for (let i = 0; i < Math.round(seconds * 120); i++) stepFight(s, { ...idleInput(), ...input }, 1 / 120);
 }
 function ready(): Fight {
-  const s = createFight(); startFight(s); advance(s, 1.7); s.aiWait = 999;
+  const s = createFight(); startFight(s); advance(s, 1.7); s.aiWait = 999; s.brain.timer = 999;
   return s;
 }
 function actionKind(s: Fight): Attack | undefined { return s.player.action?.kind; }
@@ -79,7 +79,7 @@ test('depleted guard breaks, cancels block and prevents immediate retaliation; g
   const s = duel(); s.player.guard = 3; incoming(s, 'poke'); advance(s, .04, { block: true });
   assert.equal(s.player.hp, 100); assert.equal(s.player.guard, 0); assert.ok(s.player.stun > .7); assert.equal(s.player.blocking, false);
   advance(s, .15, { heavy: true }); assert.equal(s.player.action, null);
-  advance(s, 1.1); assert.ok(s.player.guard > 20);
+  advance(s, 2); assert.ok(s.player.guard > 20);
 });
 
 test('hit interrupts startup, grants bounded immunity and briefly freezes both fighters', () => {
@@ -100,7 +100,7 @@ test('pause freezes timer, physics and startup; resume requires explicit action'
 });
 
 test('AI approaches and uses different attacks; warmup reduces incoming damage', () => {
-  const s = ready(); s.aiWait = 0; const kinds = new Set<string>();
+  const s = ready(); s.aiWait = 0; s.brain.timer = .18; const kinds = new Set<string>();
   for (let i = 0; i < 120*9; i++) { stepFight(s, { ...idleInput(), block: true }, 1/120); if (s.worker.action) kinds.add(s.worker.action.kind); }
   assert.ok(s.worker.x < 1170); assert.ok(kinds.has('poke')); assert.ok(kinds.has('sweep'));
   const easy = duel(); easy.difficulty = 'warmup'; incoming(easy, 'poke'); advance(easy, .05); assert.equal(easy.player.hp, 92);
