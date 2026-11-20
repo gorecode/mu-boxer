@@ -18,9 +18,13 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 360, height: 800 } } },
   ],
-  webServer: {
+  webServer: [{
     command: 'npm run preview -- --port 4197 --strictPort --base=/mu-boxer/',
     url: 'http://127.0.0.1:4197/mu-boxer/',
     reuseExistingServer: !process.env.CI,
-  },
+  }, {
+    command: 'npm run dev -- --port 4198 --strictPort --base=/mu-boxer/',
+    url: 'http://127.0.0.1:4198/mu-boxer/',
+    reuseExistingServer: !process.env.CI,
+  }],
 });
