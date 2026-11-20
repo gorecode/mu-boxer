@@ -14,6 +14,7 @@ const start = element<HTMLButtonElement>('start');
 const pause = element<HTMLButtonElement>('pause');
 const difficulty = element<HTMLSelectElement>('difficulty');
 const overlay = element('overlay');
+const hitboxes = element<HTMLInputElement>('hitboxes');
 const audio = new FightAudio();
 let fight = createFight();
 let renderer: FightRenderer | undefined;
@@ -112,13 +113,14 @@ async function load(): Promise<void> {
   try {
     const assets = await loadAssets();
     renderer = new FightRenderer(canvas, assets, matchMedia('(prefers-reduced-motion: reduce)').matches);
-    renderer.draw(fight); start.disabled = false; start.textContent = 'НАЧАТЬ БОЙ →';
+    renderer.draw(fight, hitboxes.checked); start.disabled = false; start.textContent = 'НАЧАТЬ БОЙ →';
     element('load-status').textContent = 'Клавиатура или кнопки под ареной.';
   } catch (error) {
     element('load-status').textContent = error instanceof Error ? error.message : 'Не удалось подготовить бой.';
     start.disabled = false; start.textContent = 'ПОВТОРИТЬ ЗАГРУЗКУ';
   } finally { loading = false; update(); }
 }
+hitboxes.addEventListener('change', () => renderer?.draw(fight, hitboxes.checked));
 start.addEventListener('click', () => { if (!renderer) { void load(); return; } reset(); });
 element('resume').addEventListener('click', resume);
 pause.addEventListener('click', () => { if (fight.phase === 'paused') resume(); else setPause(); });
@@ -135,8 +137,8 @@ element('fullscreen').addEventListener('click', async () => {
   catch { element('state-label').textContent = 'Полный экран недоступен в этом браузере.'; }
 });
 document.addEventListener('keydown', event => {
-  if (event.target instanceof HTMLElement && event.target.closest('input,select,textarea,[contenteditable=true]')) return;
-  if (event.code === 'Space' && event.target instanceof HTMLElement && event.target.closest('button,a')) return;
+  if (event.target instanceof HTMLElement && event.target.closest('input:not([type=checkbox]),select,textarea,[contenteditable=true]')) return;
+  if (event.code === 'Space' && event.target instanceof HTMLElement && event.target.closest('button,a,input')) return;
   if (event.code === 'Escape' || event.code === 'KeyP') {
     if (!event.repeat) { if (fight.phase === 'paused') resume(); else setPause(); } return;
   }
@@ -199,7 +201,7 @@ function frame(now: number): void {
     }
   }
   if (active || lastDrawPhase !== fight.phase) {
-    update(); renderer?.draw(fight); lastDrawPhase = fight.phase;
+    update(); renderer?.draw(fight, hitboxes.checked); lastDrawPhase = fight.phase;
   }
   requestAnimationFrame(frame);
 }

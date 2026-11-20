@@ -189,3 +189,47 @@ test('autorepeat after pause cannot create an attack until the held key is relea
   await page.keyboard.up('j'); await page.keyboard.press('j'); await page.clock.runFor(30);
   await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'jab');
 });
+
+
+test('jab connects at visible reach and runtime hitbox checkbox redraws live and paused without changing combat', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await load(page);
+  const checkbox = page.getByRole('checkbox', { name: 'ХИТБОКСЫ' });
+  const colors = () => page.locator('#arena').evaluate((canvas: HTMLCanvasElement) => {
+    const pixels = canvas.getContext('2d')!.getImageData(300, 250, 1100, 580).data;
+    let hurt = 0, hit = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i] === 66 && pixels[i + 1] === 232 && pixels[i + 2] === 239) hurt++;
+      if (pixels[i] === 255 && pixels[i + 1] === 66 && pixels[i + 2] === 100) hit++;
+    }
+    return { hurt, hit };
+  });
+  await expect(checkbox).not.toBeChecked(); expect(await colors()).toEqual({ hurt: 0, hit: 0 });
+  await checkbox.check(); expect((await colors()).hurt).toBeGreaterThan(500);
+  await checkbox.uncheck(); expect(await colors()).toEqual({ hurt: 0, hit: 0 });
+  await page.locator('#difficulty').selectOption('warmup'); await begin(page);
+  await page.keyboard.down('d');
+  for (let i = 0; i < 60 && await number(page, 'worker-x') - await number(page, 'player-x') > 300; i++) await page.clock.runFor(20);
+  await page.keyboard.up('d');
+  const distance = await number(page, 'worker-x') - await number(page, 'player-x');
+  expect(distance).toBeGreaterThan(280); expect(distance).toBeLessThanOrEqual(300);
+  const hp = Number(await page.locator('#worker-health').getAttribute('aria-valuenow'));
+  await checkbox.focus(); await page.keyboard.press('Space'); await expect(checkbox).toBeChecked();
+  await page.clock.runFor(20); expect(await number(page, 'player-y')).toBe(0);
+  await page.keyboard.press('j'); await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'jab');
+  expect((await colors()).hit).toBe(0);
+  await page.clock.runFor(100);
+  await expect(page.locator('#worker-health')).toHaveAttribute('aria-valuenow', String(hp - 8));
+  expect((await colors()).hit).toBeGreaterThan(200);
+  await page.keyboard.press('Escape');
+  const x = await number(page, 'player-x'), timer = await page.locator('#timer').textContent();
+  await checkbox.uncheck(); expect(await colors()).toEqual({ hurt: 0, hit: 0 });
+  await checkbox.check(); expect((await colors()).hit).toBeGreaterThan(200);
+  await page.clock.runFor(500);
+  expect(await number(page, 'player-x')).toBe(x); await expect(page.locator('#timer')).toHaveText(timer!);
+  await page.locator('.arena-shell').screenshot({ path: info.outputPath('fight-hitboxes.png') });
+  await page.locator('#pause-restart').click(); await expect(checkbox).toBeChecked();
+  await page.clock.runFor(30); expect((await colors()).hit).toBe(0); expect((await colors()).hurt).toBeGreaterThan(500);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

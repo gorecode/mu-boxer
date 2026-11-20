@@ -47,8 +47,8 @@ test('jab has startup, range, facing, recovery and one contact per swing', () =>
   const distant = duel(); distant.worker.x = 1000; advance(distant, .5, { light: true }); assert.equal(distant.worker.hp, 120);
   const wrong = duel(); wrong.player.action = { kind: 'jab', time: .11, connected: false }; wrong.player.facing = -1;
   advance(wrong, .04); assert.equal(wrong.worker.hp, 120);
-  const edge = duel(); edge.worker.x = edge.player.x + moves.jab.range; advance(edge, .15, { light: true }); assert.equal(edge.worker.hp, 112);
-  const outside = duel(); outside.worker.x = outside.player.x + moves.jab.range + .1; advance(outside, .15, { light: true }); assert.equal(outside.worker.hp, 120);
+  const edge = duel(); edge.worker.stop = .5; edge.worker.x = edge.player.x + moves.jab.range; advance(edge, .15, { light: true }); assert.equal(edge.worker.hp, 112);
+  const outside = duel(); outside.worker.stop = .5; outside.worker.x = outside.player.x + moves.jab.range + .1; advance(outside, .15, { light: true }); assert.equal(outside.worker.hp, 120);
 });
 
 test('heavy and crouching attacks have distinct damage and recovery contracts', () => {
@@ -215,9 +215,9 @@ test('pose boxes follow facing and height, disappear outside active frames, and 
   p.action.time = .11;
   const right = fighterGeometry(p);
   assert.equal(right.hit.length, 1); assert.equal(right.hurt.length, 4);
-  assert.equal(right.hit[0].right, 750);
+  assert.equal(right.hit[0].right, 855);
   p.facing = -1; const left = fighterGeometry(p);
-  assert.equal(left.hit[0].left, 450); assert.equal(left.hit[0].right, 545);
+  assert.equal(left.hit[0].left, 345); assert.equal(left.hit[0].right, 545);
   p.y = 100; assert.equal(fighterGeometry(p).hit[0].top, left.hit[0].top + 100);
   p.action.time = .19; assert.equal(fighterGeometry(p).hit.length, 0);
   p.action = null; p.crouch = true; p.y = 0;
@@ -246,4 +246,24 @@ test('airborne down input does not select grounded crouching attacks', () => {
     stepFight(s, { ...idleInput(), down: true, [button]: true }, 1/120);
     assert.equal(s.player.action?.kind, expected); assert.equal(s.player.crouch, false);
   }
+});
+
+
+test('jab reaches the drawn fist at 300px in either facing and respects contact boundaries', () => {
+  for (const facing of [1, -1] as const) {
+    for (const [distance, hp] of [[300, 112], [320, 112], [320.1, 120]] as const) {
+      const s = ready(); s.player.x = 800; s.worker.x = 800 + facing * distance;
+      s.player.facing = facing; s.worker.facing = facing === 1 ? -1 : 1; s.worker.stop = .5;
+      advance(s, .15, { light: true });
+      assert.equal(s.worker.hp, hp, `facing=${facing}, distance=${distance}`);
+      advance(s, .1); assert.equal(s.worker.hp, hp, 'one contact per swing');
+    }
+  }
+  const duck = duel(); duck.worker.crouch = true; duck.worker.stop = .5;
+  advance(duck, .15, { light: true }); assert.equal(duck.worker.hp, 120);
+  const immune = duel(); immune.worker.invulnerable = .5;
+  advance(immune, .15, { light: true }); assert.equal(immune.worker.hp, 120);
+  const s = duel(); s.player.action = { kind: 'jab', time: .11, connected: false };
+  const hit = fighterGeometry(s.player).hit[0];
+  assert.deepEqual(hit, { left: 655, right: 855, bottom: 430, top: 500 });
 });
