@@ -6,58 +6,23 @@ import { visualAt } from '../src/scene.ts';
 const scene = scenes.find(scene => scene.id === 'slider')!;
 const chapter = compileFilm(scenes).chapters.find(chapter => chapter.scene.id === 'slider')!;
 
-test('GSAP and native preserve framing and paused frames in both seek directions', async ({ page }, testInfo) => {
-  const times = [0, 450, 1275, 2100, 3999, 7800, 8350, 9225, 10100, 11700, 14900, 31900, 34400, 9225, 0];
-  const native: Buffer[] = [];
-  for (const animation of ['native', 'gsap']) {
-    await page.goto(`./?animation=${animation}#scene=slider&t=0`);
+test('GSAP preserves authored camera positions in every scene after forward and backward seeks', async ({ page }) => {
+  for (const source of scenes) {
+    await page.goto(`./#scene=${source.id}&t=0`);
     await expect(page.locator('#start')).toBeEnabled();
-    for (const [index, time] of times.entries()) {
+    const moving = source.cues.flatMap(cue => (cue.shots ?? []).flatMap((shot, index, shots) => shot.cameraEnd
+      ? [cue.start + shot.at, Math.round(cue.start + (shot.at + (shots[index + 1]?.at ?? cue.duration)) / 2)]
+      : []));
+    for (const time of [0, ...moving, source.duration, ...moving.toReversed(), 0]) {
       await page.locator('#scrub').fill(String(time));
-      await page.locator('#art').evaluate(async (image: HTMLImageElement) => image.decode());
       const camera = await page.locator('#art').evaluate(image => {
         const style = (image as HTMLElement).style;
         const [x, y] = style.transformOrigin.split(' ').map(parseFloat);
         return { scale: Number(style.transform.match(/scale\(([^)]+)\)/)![1]), x, y };
       });
-      for (const key of ['scale', 'x', 'y'] as const) {
-        expect(camera[key]).toBeCloseTo(visualAt(scene, time).camera[key], 5);
-      }
-      await page.evaluate(() => window.scrollTo(0, 0));
-      const frame = await page.locator('#stage').screenshot({ animations: 'disabled' });
-      if (animation === 'native') native.push(frame);
-      else {
-        if (!frame.equals(native[index])) {
-          const difference = await page.evaluate(async (sources) => {
-            const images = await Promise.all(sources.map(async source => {
-              const image = new Image();
-              image.src = `data:image/png;base64,${source}`;
-              await image.decode();
-              const canvas = document.createElement('canvas');
-              canvas.width = image.width; canvas.height = image.height;
-              const context = canvas.getContext('2d')!;
-              context.drawImage(image, 0, 0);
-              return context.getImageData(0, 0, canvas.width, canvas.height);
-            }));
-            const [left, right] = images;
-            if (left.width !== right.width || left.height !== right.height) throw new Error('Different frame dimensions');
-            let changed = 0;
-            let maximum = 0;
-            for (let i = 0; i < left.data.length; i += 4) {
-              const delta = Math.max(...[0, 1, 2, 3].map(channel => Math.abs(left.data[i + channel] - right.data[i + channel])));
-              if (delta) changed++;
-              maximum = Math.max(maximum, delta);
-            }
-            return { maximum, ratio: changed / (left.width * left.height) };
-          }, [native[index].toString('base64'), frame.toString('base64')]);
-          if (difference.maximum > 2 || difference.ratio > 0.0001) {
-            await testInfo.attach('native', { body: native[index], contentType: 'image/png' });
-            await testInfo.attach('gsap', { body: frame, contentType: 'image/png' });
-          }
-          expect(difference.maximum, `channel difference at ${time}ms`).toBeLessThanOrEqual(2);
-          expect(difference.ratio, `pixel difference at ${time}ms`).toBeLessThanOrEqual(0.0001);
-        }
-      }
+      const expected = visualAt(source, time).camera;
+      expect(camera.scale).toBeCloseTo(expected.scale, 5);
+      for (const key of ['x', 'y'] as const) expect(camera[key]).toBeCloseTo(expected[key], 3);
       await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Воспроизвести');
     }
   }

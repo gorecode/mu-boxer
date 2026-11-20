@@ -20,8 +20,9 @@ h1 { margin: 0; font: 38px/1.15 Georgia, 'Times New Roman', serif; letter-spacin
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 28px; align-items: start; }
 .screen-column { min-width: 0; width: 100%; max-width: calc((100dvh - 310px) * 4 / 3); justify-self: center; }
 .stage { position: relative; aspect-ratio: 4 / 3; background: #100e0d; overflow: hidden; border: 1px solid #b59e9266; box-shadow: 0 14px 45px #0005; isolation: isolate; }
-.stage img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform 160ms ease-out; }
-.stage-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 50%, #130a08b3 100%); }
+.stage img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.stage-shade { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 42%, transparent 40%, #180c082e 100%), linear-gradient(transparent 50%, #130a08b3 100%); }
+.stage-texture { position: absolute; inset: 0; pointer-events: none; opacity: .035; background: repeating-linear-gradient(112deg, transparent 0 5px, #24100b 5px 6px); }
 .scene-flash { position: absolute; z-index: 1; inset: 0; background: #fff0df; opacity: .8; pointer-events: none; }
 .scene-blackout { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
 .frame-counter { position: absolute; top: 17px; left: 19px; color: #e7d0c2cc; text-shadow: 0 1px 4px #000; font-size: 9px; letter-spacing: 2px; }
@@ -35,9 +36,10 @@ h1 { margin: 0; font: 38px/1.15 Georgia, 'Times New Roman', serif; letter-spacin
 .primary { background: #ae4538; border: 1px solid #df89746b; padding: 14px 25px; min-height: 45px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 14px #0003; }
 .primary:hover { background: #c25645; }
 .start-note { font-size: 10px; color: #c6b4aa; margin-top: 15px; }
-.fight-overlay { background: #170e0cce; }
+.fight-overlay { background: radial-gradient(ellipse at center, #492019a6, #120b09eb); }
 .fight-overlay .eyebrow { font-size: 9px; }
-.versus { display: flex; flex-direction: column; gap: 12px; margin: 15px 0 26px; }
+.versus { display: flex; flex-direction: column; gap: 12px; margin: 15px 0 26px; transform: translateY(var(--fight-y, 0px)) scale(var(--fight-scale, 1)); text-shadow: 0 3px 0 #150a08, 0 0 28px #e06b3933; }
+.versus::before, .versus::after { content: ''; width: 75%; height: 1px; margin: 0 auto; background: linear-gradient(90deg, transparent, #d48a6c, transparent); }
 .versus strong { font-family: Impact, 'Arial Narrow', sans-serif; font-size: clamp(30px, 4vw, 58px); letter-spacing: 1px; }
 .versus em { color: var(--red); font-size: 11px; letter-spacing: 4px; font-style: normal; }
 #fight-note { font-size: 13px; color: #cbb7ab; max-width: 330px; line-height: 1.6; }
@@ -92,6 +94,10 @@ footer b { margin: 0 6px; color: #58483b; }
   main { padding: 26px 16px 20px; } h1 { font-size: 30px; } .scene-heading { margin-bottom: 20px; } .version { font-size: 8px; }
   .workspace { grid-template-columns: minmax(0, 1fr); gap: 24px; } .screen-column { max-width: none; } .stage { width: 100%; } .start-title { font-size: 38px; } .subtitle p { font-size: 17px; } .subtitle > span { font-size: 8px; margin-bottom: 7px; }
   .transport-row { flex-wrap: wrap; }
+  .fight-overlay { padding: 10px; }
+  .fight-overlay .eyebrow { margin-bottom: 6px; font-size: 8px; }
+  .versus { gap: 5px; margin: 5px 0 10px; }
+  .versus strong { font-size: clamp(26px, 6vw, 38px); }
   .review-panel { padding: 20px; } .cue-list { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; } .panel-header { margin-bottom: 20px; }
   .cue-list button { padding: 13px 6px; } .sound-controls { gap: 0; } .sound-button { font-size: 8px; } .icon-button { min-width: 29px; } #clock { font-size: 10px; }
   footer { flex-direction: column; gap: 10px; margin-top: 24px; } .under-screen > span { font-size: 7px; letter-spacing: .8px; }
