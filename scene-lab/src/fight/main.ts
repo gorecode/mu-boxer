@@ -2,6 +2,8 @@ import './style.css';
 import { createFight, idleInput, pauseFight, resumeFight, startFight, stepFight, type Input, type Phase } from './model.ts';
 import { FightAudio, FightRenderer, loadAssets } from './render.ts';
 
+type Button = Exclude<keyof Input, 'attackPressed'>;
+
 function element<T extends HTMLElement = HTMLElement>(id: string): T {
   const result = document.getElementById(id);
   if (!result) throw new Error(`Missing fight element: ${id}`);
@@ -20,22 +22,29 @@ let accumulator = 0;
 let lastFrame = 0;
 let loading = false;
 let pendingJump = false;
+let pendingAttack: Input['attackPressed'];
 let lastDrawPhase: Phase | undefined;
-const keys = new Map<string, keyof Input>();
-const pointers = new Map<number, keyof Input>();
-const bindings: Record<string, keyof Input> = {
+const keys = new Map<string, Button>();
+const pointers = new Map<number, Button>();
+const bindings: Record<string, Button> = {
   KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyS: 'down', ArrowDown: 'down',
   KeyW: 'jump', ArrowUp: 'jump', Space: 'jump', KeyJ: 'light', KeyK: 'heavy', KeyL: 'block',
 };
 function clearInput(): void {
-  keys.clear(); pointers.clear(); pendingJump = false;
+  keys.clear(); pointers.clear(); pendingJump = false; pendingAttack = undefined;
   document.querySelectorAll('.touch-controls .active').forEach(button => button.classList.remove('active'));
 }
 function input(): Input {
   const current = idleInput();
   for (const key of [...keys.values(), ...pointers.values()]) current[key] = true;
   current.jump = pendingJump; pendingJump = false;
+  current.attackPressed = pendingAttack; pendingAttack = undefined;
   return current;
+}
+function queueAttack(action: Button): void {
+  if (action !== 'light' && action !== 'heavy') return;
+  const down = fight.player.y === 0 && [...keys.values(), ...pointers.values()].includes('down');
+  pendingAttack = action === 'heavy' ? down ? 'upper' : 'heavy' : down ? 'low' : 'jab';
 }
 function reset(play = true): void {
   const chosen = difficulty.value === 'warmup' ? 'warmup' : 'street';
@@ -65,8 +74,12 @@ function update(): void {
     canvas.dataset[`${name}X`] = fighter.x.toFixed(1);
     canvas.dataset[`${name}Y`] = fighter.y.toFixed(1);
     canvas.dataset[`${name}Action`] = fighter.action?.kind ?? '';
+    canvas.dataset[`${name}Reaction`] = fighter.reaction ?? '';
+    canvas.dataset[`${name}Stop`] = fighter.stop.toFixed(3);
   }
   element('timer').textContent = String(Math.ceil(fight.remaining)).padStart(2, '0');
+  canvas.dataset.combo = String(fight.combo);
+  canvas.dataset.buffered = fight.buffered?.kind ?? '';
   canvas.dataset.phase = phase;
   canvas.dataset.loaded = renderer ? 'true' : 'false';
   const ended = phase === 'win' || phase === 'loss' || phase === 'draw';
@@ -131,19 +144,23 @@ document.addEventListener('keydown', event => {
   const action = bindings[event.code];
   if (!action || !['countdown', 'fighting'].includes(fight.phase)) return;
   event.preventDefault();
+  if (event.repeat) return;
   if (action === 'jump' && !event.repeat && ![...keys.values()].includes('jump')) pendingJump = true;
+  queueAttack(action);
   keys.set(event.code, action);
 });
 document.addEventListener('keyup', event => {
   keys.delete(event.code);
 });
 for (const button of document.querySelectorAll<HTMLButtonElement>('[data-input]')) {
-  const action = button.dataset.input as keyof Input;
+  const action = button.dataset.input as Button;
   const key = `button:${action}`;
   button.addEventListener('keydown', event => {
     if (!['Space', 'Enter'].includes(event.code) || !['fighting', 'countdown'].includes(fight.phase)) return;
     event.preventDefault(); event.stopPropagation();
+    if (event.repeat) return;
     if (action === 'jump' && !event.repeat) pendingJump = true;
+    queueAttack(action);
     keys.set(key, action); button.classList.add('active');
   });
   button.addEventListener('keyup', event => {
@@ -156,11 +173,12 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-input]'
     event.preventDefault();
     button.setPointerCapture(event.pointerId); pointers.set(event.pointerId, action);
     if (action === 'jump') pendingJump = true;
+    queueAttack(action);
     button.classList.add('active');
   });
   const release = (event: PointerEvent) => {
     pointers.delete(event.pointerId);
-    button.classList.toggle('active', [...pointers.values()].includes(button.dataset.input as keyof Input));
+    button.classList.toggle('active', [...pointers.values()].includes(button.dataset.input as Button));
   };
   for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) button.addEventListener(name, release);
 }

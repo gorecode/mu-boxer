@@ -33,6 +33,7 @@ export class FightRenderer {
   private flash = 0;
   private tags: { text: string; x: number; y: number; life: number; color: string }[] = [];
   private serial = 0;
+  private visualTime = 0;
   private assets: Assets;
   private reducedMotion: boolean;
   constructor(canvas: HTMLCanvasElement, assets: Assets, reducedMotion: boolean) {
@@ -41,14 +42,14 @@ export class FightRenderer {
     if (!context) throw new Error('Браузер не поддерживает рисование Canvas.');
     this.ctx = context;
   }
-  clear(): void { this.particles = []; this.tags = []; this.shake = 0; this.flash = 0; }
+  clear(): void { this.particles = []; this.tags = []; this.shake = 0; this.flash = 0; this.visualTime = 0; }
   events(events: FightEvent[], s: Fight): void {
     for (const event of events) {
-      const f = s[event.target], attacker = s[event.target === 'player' ? 'worker' : 'player'];
-      const direction = attacker.x < f.x ? -1 : 1;
-      let y = 820 - f.y - (attacker.action && moves[attacker.action.kind].level === 'low' ? 100 : f.crouch ? 240 : 405);
-      const x = f.x + direction * 55;
+      const f = s[event.target];
+      let y = 820 - event.y;
+      const x = event.x;
       if (event.type === 'land' || event.type === 'jump') y = 817;
+      else if (!event.attack) y = 820 - f.y - 350;
       const impact = event.type === 'hit' || event.type === 'break';
       if (impact) { this.shake = event.power >= 17 ? 10 : 5; this.flash = .07; }
       const color = event.type === 'block' ? '#c2c4e0' : event.type === 'land' || event.type === 'jump' ? '#ab8b82' : '#ffcd95';
@@ -67,6 +68,7 @@ export class FightRenderer {
     }
   }
   update(dt: number): void {
+    this.visualTime += dt;
     this.shake = Math.max(0, this.shake - dt * 65); this.flash = Math.max(0, this.flash - dt);
     for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += dt * 500; }
     this.particles = this.particles.filter(p => p.life > 0);
@@ -75,7 +77,9 @@ export class FightRenderer {
   }
   private pose(f: Fighter, worker: boolean): number {
     if (f.hp === 0) return 11;
-    if (f.hurt > 0) return 6;
+    if (f.reaction === 'guard') return worker ? 5 : f.crouch ? 5 : 4;
+    if (f.reaction === 'down') return 11;
+    if (f.reaction || f.hurt > 0) return 6;
     if (f.action) {
       const { kind, time } = f.action, m = moves[kind];
       if (time < m.windup) {
@@ -99,12 +103,26 @@ export class FightRenderer {
     const frame = this.assets.manifest[key][index], image = this.assets[key][index];
     const facing = worker ? -f.facing : f.facing;
     const dead = f.hp === 0;
-    const idle = !f.action && f.stun <= 0 && f.y === 0 && !f.crouch;
+    const idle = !f.action && !f.reaction && f.stun <= 0 && f.y === 0 && !f.crouch;
     const breath = this.reducedMotion ? 0 : idle ? Math.sin(time * 3.7 + (worker ? 2 : 0)) * 2 : 0;
     c.save();
     const ground = 820;
     c.translate(dead ? Math.max(310, Math.min(1290, f.x)) : f.x, ground - f.y);
     c.scale(facing, 1);
+    if (!this.reducedMotion && !dead) {
+      let offset = 0, tilt = 0;
+      if (f.action) {
+        const m = moves[f.action.kind], t = f.action.time;
+        offset = t < m.windup ? -8 * Math.sin(t / m.windup * Math.PI / 2)
+          : 10 * Math.max(0, 1 - (t - m.windup) / (m.active + m.recovery));
+        tilt = offset * .002;
+      } else if (f.reaction) {
+        tilt = f.reaction === 'heavy' ? -.13 : f.reaction === 'launch' ? -.22 : f.reaction === 'guard' ? -.035 : -.06;
+        offset = -Math.min(10, f.stun * 24);
+      }
+      const mirror = worker ? -1 : 1;
+      c.translate(offset * mirror, -220); c.rotate(tilt * mirror); c.translate(0, 220);
+    }
     c.scale(frame.scale, frame.scale);
     c.globalAlpha = dead ? .82 : 1;
     if (f.hurt > .2) c.filter = 'brightness(1.45) sepia(.22)';
@@ -125,7 +143,7 @@ export class FightRenderer {
   draw(s: Fight): void {
     const c = this.ctx;
     c.clearRect(0, 0, 1600, 900); c.save();
-    if (!this.reducedMotion) c.translate(Math.sin(s.time * 91) * this.shake, Math.cos(s.time * 73) * this.shake * .4);
+    if (!this.reducedMotion) c.translate(Math.sin(this.visualTime * 91) * this.shake, Math.cos(this.visualTime * 73) * this.shake * .4);
     c.drawImage(this.assets.arena, 0, 0, 1600, 900);
     for (const f of [s.player, s.worker]) {
       c.save(); c.translate(f.x, 823); c.scale(1, .19);
@@ -177,12 +195,12 @@ export class FightAudio {
       for (let i = 0; i < data.length; i++) { seed = (seed * 16807) % 2147483647; data[i] = (seed / 1073741824 - 1) * (1 - i / data.length); }
       const noise = context.createBufferSource(), filter = context.createBiquadFilter(), gain = context.createGain();
       noise.buffer = buffer; filter.type = 'lowpass'; filter.frequency.value = event.type === 'block' ? 3200 : event.type === 'miss' ? 1100 : 650;
-      gain.gain.setValueAtTime(event.type === 'hit' ? .27 : .12, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
+      gain.gain.setValueAtTime(event.type === 'hit' ? event.power >= 17 ? .32 : .21 : .12, now); gain.gain.exponentialRampToValueAtTime(.001, now + duration);
       noise.connect(filter).connect(gain).connect(context.destination); noise.start(now); noise.stop(now + duration);
     }
     if (event.type === 'hit' || event.type === 'start' || event.type === 'finish') {
       const oscillator = context.createOscillator(), gain = context.createGain(); oscillator.type = 'triangle';
-      oscillator.frequency.setValueAtTime(event.type === 'hit' ? 125 : event.type === 'start' ? 260 : 180, now);
+      oscillator.frequency.setValueAtTime(event.type === 'hit' ? event.power >= 17 ? 95 : 155 : event.type === 'start' ? 260 : 180, now);
       oscillator.frequency.exponentialRampToValueAtTime(45, now + .2); gain.gain.setValueAtTime(.23, now); gain.gain.exponentialRampToValueAtTime(.001, now + .23);
       oscillator.connect(gain).connect(context.destination); oscillator.start(now); oscillator.stop(now + .24);
     }
