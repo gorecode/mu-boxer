@@ -14,13 +14,13 @@ function move(timing: number[], poses: number[], height: number[], low: boolean,
   return { ...data, cels, get range() { return Math.max(0, cels[1].hit[0]?.right ?? 0) + 65; }, get windup() { return cels[0].duration; }, get active() { return cels[1].duration; }, get recovery() { return cels[2].duration + cels[3].duration; } };
 }
 export const moves: Record<Attack, Move> = {
-  jab: move([.1, .09, .09, 0.09], [0, 2, 2, 0], [430, 500], false, { range: 320, damage: 8, level: 'mid', push: 18, hitstun: .4, stop: [.04, .065], reaction: 'light', lift: 0 }),
-  heavy: move([.25, .12, .09, 0.27], [4, 3, 3, 0], [260, 370], false, { range: 250, damage: 20, level: 'mid', push: 60, hitstun: .42, stop: [.065, .09], reaction: 'heavy', lift: 0 }),
-  low: move([.17, .1, .09, 0.21], [5, 8, 8, 0], [15, 110], true, { range: 235, damage: 10, level: 'low', push: 25, hitstun: .38, stop: [.04, .065], reaction: 'light', lift: 0 }),
+  jab: move([.1, .09, .09, 0.09], [0, 2, 2, 0], [430, 500], false, { range: 320, damage: 8, level: 'mid', push: 18, hitstun: .32, stop: [.04, .065], reaction: 'light', lift: 0 }),
+  heavy: move([.25, .12, .09, .19], [4, 3, 3, 0], [260, 370], false, { range: 250, damage: 20, level: 'mid', push: 60, hitstun: .42, stop: [.065, .09], reaction: 'heavy', lift: 0 }),
+  low: move([.17, .1, .09, .15], [5, 8, 8, 0], [15, 110], true, { range: 235, damage: 10, level: 'low', push: 25, hitstun: .38, stop: [.04, .065], reaction: 'light', lift: 0 }),
   upper: move([.2, .12, .09, 0.31], [5, 9, 9, 0], [210, 455], true, { range: 250, damage: 23, level: 'overhead', push: 55, hitstun: .6, stop: [.07, .10], reaction: 'launch', lift: 620 }),
-  poke: move([.4, .12, .09, 0.33], [1, 2, 2, 7], [330, 410], false, { range: 320, damage: 12, level: 'high', push: 38, hitstun: .36, stop: [.045, .07], reaction: 'light', lift: 0 }),
-  sweep: move([.65, .14, .09, 0.53], [3, 9, 9, 7], [0, 65], false, { range: 345, damage: 17, level: 'low', push: 65, hitstun: .65, stop: [.055, .085], reaction: 'down', lift: 0 }),
-  overhead: move([.76, .12, .09, 0.57], [3, 8, 8, 7], [240, 490], false, { range: 280, damage: 22, level: 'overhead', push: 65, hitstun: .5, stop: [.075, .1], reaction: 'heavy', lift: 0 }),
+  poke: move([.3, .12, .09, .21], [1, 2, 2, 7], [330, 410], false, { range: 320, damage: 12, level: 'high', push: 38, hitstun: .36, stop: [.045, .07], reaction: 'light', lift: 0 }),
+  sweep: move([.5, .14, .09, .37], [3, 9, 9, 7], [0, 65], false, { range: 345, damage: 17, level: 'low', push: 65, hitstun: .65, stop: [.055, .085], reaction: 'down', lift: 0 }),
+  overhead: move([.6, .12, .09, .41], [3, 8, 8, 7], [240, 490], false, { range: 280, damage: 22, level: 'overhead', push: 65, hitstun: .5, stop: [.075, .1], reaction: 'heavy', lift: 0 }),
 };
 export function celAt(kind: Attack, time: number): { cel: Cel; index: number; elapsed: number } {
   const cels = moves[kind].cels;

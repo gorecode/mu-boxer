@@ -7,7 +7,7 @@ const advance = (s: Fight, seconds: number, input: Partial<Input> = {}) => {
   for (let i = 0; i < Math.round(seconds * 120); i++) stepFight(s, { ...idleInput(), ...input }, 1/120);
 };
 function ready(): Fight { const s = createFight('street', true); startFight(s); advance(s, 1.7); s.player.x = 600; s.worker.x = 800; return s; }
-function poke(s: Fight) { s.worker.action = { kind: 'poke', time: .395, connected: false }; }
+function poke(s: Fight) { s.worker.action = { kind: 'poke', time: moves.poke.windup - .005, connected: false }; }
 
 test('cel duration, pose and collision share one source, including active boundaries and reset', () => {
   const s = ready();

@@ -131,8 +131,10 @@ test('attacks use press edges; holding produces one swing and re-press produces 
 });
 
 test('120ms buffer survives release and hitstop but expires during a long recovery', () => {
-  const s = ready(); s.player.action = { kind: 'heavy', time: .69, connected: false };
-  stepFight(s, { ...idleInput(), light: true }, 1/120); advance(s, .06);
+  const s = ready(); s.player.action = { kind: 'heavy', time: moves.heavy.windup + moves.heavy.active + moves.heavy.recovery - .04, connected: false };
+  stepFight(s, { ...idleInput(), light: true }, 1/120);
+  assert.equal(s.player.action?.kind, 'heavy'); assert.equal(s.buffered?.kind, 'jab');
+  advance(s, .06);
   assert.equal(s.player.action?.kind, 'jab'); assert.equal(s.buffered, null);
   const expired = ready(); advance(expired, .02, { heavy: true });
   advance(expired, .02, { light: true }); advance(expired, .9);
