@@ -1,20 +1,11 @@
 from array import array
+import argparse
 from collections import deque
 from pathlib import Path
 import json
 from PIL import Image
 
-ROOT = Path(__file__).resolve().parents[3]
-SOURCE = Path(__file__).resolve().parent
-OUTPUT = ROOT / 'scene-lab/public/art/fight'
-OUTPUT.mkdir(parents=True, exist_ok=True)
-Image.open(SOURCE / 'fight-arena-source.png').convert('RGB').save(OUTPUT / 'arena.webp', quality=91)
-manifest = {}
-for name, anchors, baselines in [
-    ('boxer', [178, 530, 890, 1245, 177, 530, 890, 1250], [514]*4 + [1066, 1066, 1066, 915]),
-    ('worker', [180, 540, 920, 1275, 215, 575, 935, 1270], [528]*4 + [1050]*4),
-]:
-    im = Image.open(SOURCE / f'fight-{name}-source.png').convert('RGBA')
+def components(im, minimum):
     w, h = im.size
     alpha = im.getchannel('A').tobytes()
     labels = array('i', [0]) * (w*h)
@@ -35,10 +26,31 @@ for name, anchors, baselines in [
                 if not labels[q] and alpha[q] >= 24:
                     labels[q] = component
                     queue.append(q)
-        if len(points) > 12000:
+        if len(points) > minimum:
             xs = [p % w for p in points]
             ys = [p // w for p in points]
             objects.append((min(xs), min(ys), max(xs)+1, max(ys)+1, component))
+    return alpha, labels, objects
+
+
+ROOT = Path(__file__).resolve().parents[3]
+SOURCE = Path(__file__).resolve().parent
+parser = argparse.ArgumentParser()
+parser.add_argument('--fighters-source', type=Path, default=SOURCE)
+parser.add_argument('--output', type=Path, default=ROOT / 'scene-lab/public/art/fight')
+args = parser.parse_args()
+OUTPUT = args.output
+OUTPUT.mkdir(parents=True, exist_ok=True)
+Image.open(SOURCE / 'fight-arena-source.png').convert('RGB').save(OUTPUT / 'arena.webp', quality=91)
+manifest = {}
+for name, anchors, baselines in [
+    ('boxer', [178, 530, 890, 1245, 177, 530, 890, 1250], [514]*4 + [1066, 1066, 1066, 915]),
+    ('worker', [180, 540, 920, 1275, 215, 575, 935, 1270], [528]*4 + [1050]*4),
+]:
+    im = Image.open(args.fighters_source / f'fight-{name}-source.png').convert('RGBA')
+    assert im.size == (1448, 1086), (name, im.size)
+    w, h = im.size
+    alpha, labels, objects = components(im, 12000)
     assert len(objects) == 8, (name, objects)
     objects.sort(key=lambda r: (int((r[1]+r[3])/2 > h/2), r[0]))
     frames = []
@@ -56,12 +68,19 @@ for name, anchors, baselines, scales in [
 ]:
     for frame in manifest[name]:
         frame['scale'] = 1.22 if name == 'worker' else 1.19
-    im = Image.open(SOURCE / f'fight-{name}-extra-source.png').convert('RGBA')
+    im = Image.open(args.fighters_source / f'fight-{name}-extra-source.png').convert('RGBA')
+    assert im.size == (1774, 887), (name, im.size)
     w, h = im.size
     for i in range(4):
         x0, y0 = i % 2 * (w // 2), i // 2 * (h // 2)
         rect = (x0, y0, (i % 2 + 1) * (w // 2), h if i > 1 else h // 2)
         cell = im.crop(rect)
+        if args.fighters_source.resolve() != SOURCE:
+            alpha, labels, objects = components(cell, 10000)
+            assert objects, (name, i + 8, 'No visible pose')
+            retained = {obj[4] for obj in objects}
+            cell.putalpha(Image.frombytes('L', cell.size,
+                bytes(a if labels[p] in retained else 0 for p, a in enumerate(alpha))))
         bbox = cell.getchannel('A').point(lambda value: 255 if value >= 24 else 0).getbbox()
         assert bbox and (bbox[2]-bbox[0]) * (bbox[3]-bbox[1]) > 10000
         crop = cell.crop(bbox)
