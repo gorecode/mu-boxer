@@ -8,8 +8,9 @@ import { subtitleAt } from './speech.ts';
 import { createSceneAnimation } from './gsap-scene.ts';
 
 const film = compileFilm(scenes);
+const filmPage = document.body.dataset.view === 'film';
 const animations = new Map(scenes.map(scene => [scene.id, createSceneAnimation(scene)]));
-const viewingScenes = [...scenes, film.scene];
+const viewingScenes = filmPage ? [film.scene] : [...scenes, film.scene];
 const initial = readSceneLink(location.hash, viewingScenes);
 let timeline = new Timeline(initial.scene);
 timeline.seek(initial.time);
@@ -23,17 +24,19 @@ let imageGeneration = 0;
 let lastChapter = '';
 let speechKey = '';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+document.body.classList.toggle('film-view', filmPage);
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="masthead">
     <a class="wordmark" href="#" aria-label="Месть боксёра 2, начало">МЕСТЬ БОКСЁРА <span>II</span></a>
     <span class="lab-mark"><i></i> СТЕНД СЮЖЕТНЫХ СЦЕН</span>
+    <a class="view-link" href="${filmPage ? './' : './film.html'}">${filmPage ? 'К сценам' : 'Смотреть игрофильм'} ↗</a>
   </header>
   <main>
     <div class="scene-heading"><div><p class="eyebrow" id="chapter"></p><h1 id="title"></h1></div>
       <span class="version">ПРОТОТИП / 03</span></div>
     <div class="workspace">
-      <section class="screen-column" aria-label="Просмотр сцены">
+      <section class="screen-column" id="player" aria-label="Просмотр сцены">
         <div class="stage" id="stage" tabindex="0" aria-label="Кадр сцены. Пробел — пауза, стрелки — смена кадра">
           <img id="art" alt="" draggable="false" />
           <div class="stage-shade"></div>
@@ -75,11 +78,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             <div class="sound-controls">
               <button class="icon-button sound-button" id="mute" aria-label="Выключить звук" aria-pressed="false">ЗВУК ВКЛ</button>
               <label class="sr-only" for="volume">Громкость</label><input id="volume" type="range" min="0" max="1" step="0.05" value="0.65" />
-              <button class="icon-button" id="fullscreen" aria-label="Полный экран" title="Полный экран (F)">⛶</button>
+              <button class="icon-button" id="fullscreen" aria-label="Полный экран" aria-pressed="false" title="Полный экран (F)">⛶</button>
             </div>
           </div>
         </div>
-        <p class="status" id="status" role="status" aria-live="polite">Серьёзный разговор. Нелепые обстоятельства.</p>
+        <p class="status" id="status" role="status" aria-live="polite">${filmPage ? '' : 'Серьёзный разговор. Нелепые обстоятельства.'}</p>
         <div class="under-screen"><span>КОМИКС · МУ-ОЗВУЧКА</span><button class="text-button" id="share">Ссылка на этот момент ↗</button></div>
       </section>
       <aside class="review-panel" aria-label="Инструменты просмотра">
@@ -101,7 +104,7 @@ const scrub = element<HTMLInputElement>('scrub');
 const startButton = element<HTMLButtonElement>('start');
 const playButton = element<HTMLButtonElement>('play');
 const status = element<HTMLElement>('status');
-const audio = new SceneAudio(() => { status.textContent = 'Звук недоступен в этом браузере. Просмотр продолжится без звука.'; });
+const audio = new SceneAudio(() => { status.dataset.error = 'audio'; status.textContent = 'Звук недоступен в этом браузере. Просмотр продолжится без звука.'; });
 
 function formatTime(milliseconds: number): string {
   const seconds = Math.floor(milliseconds / 1000);
@@ -111,8 +114,9 @@ function formatTime(milliseconds: number): string {
 function populate(): void {
   const scene = timeline.scene;
   element('stage').classList.toggle('hard-cuts', !!scene.hardCuts);
-  if (status.textContent?.startsWith('Не удалось загрузить иллюстрацию.')) {
-    status.textContent = 'Серьёзный разговор. Нелепые обстоятельства.';
+  if (status.dataset.error === 'image') {
+    delete status.dataset.error;
+    status.textContent = filmPage ? '' : 'Серьёзный разговор. Нелепые обстоятельства.';
   }
   element('chapter').textContent = scene.subtitle;
   element('title').textContent = scene.title;
@@ -268,6 +272,7 @@ function imageFailed(): void {
   startButton.disabled = true;
   playButton.disabled = true;
   startButton.textContent = 'Иллюстрация не загрузилась';
+  status.dataset.error = 'image';
   status.textContent = 'Не удалось загрузить иллюстрацию. Обновите страницу, чтобы попробовать снова.';
 }
 art.addEventListener('error', imageFailed);
@@ -302,11 +307,40 @@ function toggleMute(): void {
   button.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
 }
 element('mute').addEventListener('click', toggleMute);
+const player = element('player');
+let expanded = false;
+let fullscreenPending = false;
+function expandPlayer(value: boolean): void {
+  expanded = value;
+  status.classList.remove('fullscreen-error');
+  player.classList.toggle('is-expanded', value);
+  document.body.classList.toggle('player-expanded', value);
+  const button = element('fullscreen');
+  button.textContent = value ? '×' : '⛶';
+  button.setAttribute('aria-pressed', String(value));
+  button.setAttribute('aria-label', value ? 'Свернуть просмотр' : 'Полный экран');
+  button.title = value ? 'Свернуть просмотр (Esc / F)' : 'Полный экран (F)';
+  if (!value) button.focus({ preventScroll: true });
+}
+document.addEventListener('fullscreenchange', () => expandPlayer(document.fullscreenElement === player));
 async function fullscreen(): Promise<void> {
+  if (fullscreenPending) return;
+  fullscreenPending = true;
   try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await element('stage').requestFullscreen();
-  } catch { status.textContent = 'Полный экран недоступен в этом браузере.'; }
+    if (document.fullscreenElement === player) await document.exitFullscreen();
+    else if (expanded) expandPlayer(false);
+    else {
+      expandPlayer(true);
+      if (player.requestFullscreen) await player.requestFullscreen();
+    }
+  } catch {
+    status.classList.toggle('fullscreen-error', document.fullscreenElement === player);
+    if (document.fullscreenElement === player || !status.dataset.error) {
+      status.textContent = document.fullscreenElement === player
+        ? 'Не удалось выйти из полного экрана. Повторите нажатие или используйте системную кнопку выхода.'
+        : 'Просмотр развёрнут в пределах окна браузера.';
+    }
+  } finally { fullscreenPending = false; }
 }
 element('fullscreen').addEventListener('click', () => { void fullscreen(); });
 element('share').addEventListener('click', () => {
@@ -356,6 +390,7 @@ window.addEventListener('hashchange', () => {
   seek(target.time);
 });
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && expanded && !document.fullscreenElement) { expandPlayer(false); return; }
   if (event.ctrlKey || event.altKey || event.metaKey || event.target instanceof HTMLElement && event.target.closest('input, select, button, a, textarea, [contenteditable]')) return;
   if (event.code === 'Space') { event.preventDefault(); void play(); }
   if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1); }

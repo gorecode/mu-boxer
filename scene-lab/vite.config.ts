@@ -2,5 +2,5 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: './',
-  build: { rolldownOptions: { input: { main: 'index.html', layered: 'layered.html', fight: 'fight.html' } } },
+  build: { rolldownOptions: { input: { main: 'index.html', film: 'film.html', layered: 'layered.html', fight: 'fight.html' } } },
 });
