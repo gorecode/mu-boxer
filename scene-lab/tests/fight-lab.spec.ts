@@ -106,3 +106,16 @@ test('after-hit dummy accepts a distant true combo, blocks a gap, and backdash w
   await page.keyboard.press('u'); await page.clock.runFor(100); expect(await num(page, 'player-x')).toBeLessThan(x - 20); expect(await num(page, 'player-dodge')).toBeGreaterThan(0);
   await page.locator('#training-health').click(); await expect(page.locator('#worker-hp')).toHaveText('120 / 120'); await expect(arena).toHaveAttribute('data-gap', 'false');
 });
+
+test('repeated corner jabs can be blocked instead of trapping the dummy in an endless combo', async ({ page }) => {
+  await begin(page); const arena = page.locator('#arena');
+  await page.locator('#training-dummy').selectOption('after-hit'); await arena.focus();
+  await page.keyboard.down('d'); await page.clock.runFor(4000); await page.keyboard.up('d');
+  expect(await num(page, 'worker-x')).toBeCloseTo(1385, 1);
+  expect(await num(page, 'worker-x') - await num(page, 'player-x')).toBeCloseTo(140, 1);
+  await page.keyboard.press('j'); await page.clock.runFor(130); await expect(page.locator('#worker-hp')).toHaveText('112 / 120');
+  await page.clock.runFor(300); await page.keyboard.press('j'); await page.clock.runFor(180);
+  await expect(page.locator('#worker-hp')).toHaveText('112 / 120'); await expect(arena).toHaveAttribute('data-gap', 'true');
+  await expect(page.locator('#training-stats')).toContainText('ЕСТЬ РАЗРЫВ');
+  await expect(page.locator('#worker-guard')).toHaveAttribute('aria-valuenow', '79');
+});
