@@ -108,14 +108,17 @@ test('AI approaches and uses different attacks; warmup reduces incoming damage',
 
 test('actual attacks can win and lose; terminal states freeze; timeout compares health fractions and supports draw', () => {
   const win = duel(); win.worker.hp = 8; win.player.y = 80; win.player.vy = 200;
-  advance(win, .3, { light: true }); assert.equal(win.phase, 'win');
+  advance(win, .3, { light: true }); assert.equal(win.phase, 'ending');
+  assert.ok(win.player.y > 0); assert.ok(win.worker.y > 0); advance(win, 3); assert.equal(win.phase, 'win');
   assert.equal(win.player.y, 0); assert.equal(win.player.vy, 0);
   assert.equal(win.worker.hp, 0); const remaining = win.remaining; advance(win, 2, { light: true }); assert.equal(win.remaining, remaining);
   const loss = duel(); loss.player.hp = 12; loss.player.y = 80; loss.player.vy = 200;
-  incoming(loss, 'poke'); advance(loss, .1); assert.equal(loss.phase, 'loss'); assert.equal(loss.player.hp, 0);
+  incoming(loss, 'poke'); advance(loss, .1); assert.equal(loss.phase, 'ending'); assert.equal(loss.player.hp, 0);
+  assert.ok(loss.player.y > 0); advance(loss, 3); assert.equal(loss.phase, 'loss');
   assert.equal(loss.player.y, 0); assert.equal(loss.player.vy, 0);
   for (const [hp, enemyHp, expected] of [[80, 60, 'win'], [40, 96, 'loss'], [50, 60, 'draw']] as const) {
-    const s = duel(); s.player.hp = hp; s.worker.hp = enemyHp; s.remaining = .01; advance(s, .03); assert.equal(s.phase, expected); assert.equal(s.remaining, 0);
+    const s = duel(); s.player.hp = hp; s.worker.hp = enemyHp; s.remaining = .01; advance(s, .03); assert.equal(s.phase, 'ending'); assert.equal(s.ending?.result, expected); assert.equal(s.remaining, 0);
+    advance(s, 3); assert.equal(s.phase, expected);
   }
 });
 
@@ -192,8 +195,9 @@ test('simultaneous active attacks trade in either orientation and can cause a do
     s.worker.x = s.player.x + facing * 160;
     for (const f of [s.player, s.worker]) { f.hp = 8; f.action = { kind: 'jab', time: .11, connected: false }; }
     stepFight(s, idleInput(), 1/120);
-    assert.equal(s.player.hp, 0); assert.equal(s.worker.hp, 0); assert.equal(s.phase, 'draw');
+    assert.equal(s.player.hp, 0); assert.equal(s.worker.hp, 0); assert.equal(s.phase, 'ending'); assert.equal(s.ending?.result, 'draw');
     assert.equal(s.events.filter(e => e.type === 'hit').length, 2);
+    advance(s, 3); assert.equal(s.phase, 'draw');
   }
 });
 
