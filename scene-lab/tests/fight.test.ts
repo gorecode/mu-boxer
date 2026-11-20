@@ -105,9 +105,13 @@ test('AI approaches and uses different attacks; warmup reduces incoming damage',
 });
 
 test('actual attacks can win and lose; terminal states freeze; timeout compares health fractions and supports draw', () => {
-  const win = duel(); win.worker.hp = 8; advance(win, .3, { light: true }); assert.equal(win.phase, 'win');
+  const win = duel(); win.worker.hp = 8; win.player.y = 80; win.player.vy = 200;
+  advance(win, .3, { light: true }); assert.equal(win.phase, 'win');
+  assert.equal(win.player.y, 0); assert.equal(win.player.vy, 0);
   assert.equal(win.worker.hp, 0); const remaining = win.remaining; advance(win, 2, { light: true }); assert.equal(win.remaining, remaining);
-  const loss = duel(); loss.player.hp = 12; incoming(loss, 'poke'); advance(loss, .1); assert.equal(loss.phase, 'loss'); assert.equal(loss.player.hp, 0);
+  const loss = duel(); loss.player.hp = 12; loss.player.y = 80; loss.player.vy = 200;
+  incoming(loss, 'poke'); advance(loss, .1); assert.equal(loss.phase, 'loss'); assert.equal(loss.player.hp, 0);
+  assert.equal(loss.player.y, 0); assert.equal(loss.player.vy, 0);
   for (const [hp, enemyHp, expected] of [[80, 60, 'win'], [40, 96, 'loss'], [50, 60, 'draw']] as const) {
     const s = duel(); s.player.hp = hp; s.worker.hp = enemyHp; s.remaining = .01; advance(s, .03); assert.equal(s.phase, expected); assert.equal(s.remaining, 0);
   }

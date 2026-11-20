@@ -139,7 +139,7 @@ function finish(s: Fight): void {
   if (p.hp > 0 && w.hp > 0 && s.remaining > 0) return;
   const delta = p.hp / p.maxHp - w.hp / w.maxHp;
   s.phase = delta > 0 ? 'win' : delta < 0 ? 'loss' : 'draw';
-  for (const f of [p, w]) { f.action = null; f.blocking = false; f.velocity = 0; }
+  for (const f of [p, w]) { f.action = null; f.blocking = false; f.velocity = 0; f.y = 0; f.vy = 0; f.crouch = false; }
   emit(s, 'finish', s.phase === 'win' ? 'worker' : 'player');
 }
 export function stepFight(s: Fight, input: Input, dt: number): void {
