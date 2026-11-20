@@ -11,7 +11,7 @@ export function fighterGeometry(f: Fighter): Geometry {
   const down = f.reaction === 'down';
   const hurt = down ? [box(-105, 0, 105, 85)] : low
     ? [box(-65, 0, 65, 155), box(-55, 155, 75, 265)]
-    : [box(-65, 0, 65, 180), box(-65, 180, 65, 370), box(-45, 370, 50, 475)];
+    : [box(-65, 0, 65, 180), box(-65, 180, 65, 450), box(-45, 450, 50, 570)];
   const hit: Box[] = [];
   const a = f.action;
   if (a) {
@@ -19,7 +19,7 @@ export function fighterGeometry(f: Fighter): Geometry {
     if (a.time >= m.windup && a.time < m.windup + m.active) {
       const extension = m.range - 65;
       const heights: Record<string, [number, number]> = {
-        jab: [300, 380], heavy: [260, 370], low: [15, 110], upper: [210, 455],
+        jab: [430, 500], heavy: [260, 370], low: [15, 110], upper: [210, 455],
         poke: [330, 410], sweep: [0, 65], overhead: [240, 490],
       };
       const [bottom, top] = heights[a.kind];

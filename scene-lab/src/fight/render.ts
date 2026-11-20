@@ -1,3 +1,4 @@
+import { fighterGeometry } from './geometry.ts';
 import { moves, type Fight, type Fighter, type FightEvent } from './model.ts';
 
 type Frame = { width: number; height: number; anchorX: number; anchorY: number; scale: number };
@@ -140,7 +141,26 @@ export class FightRenderer {
       }
     }
   }
-  draw(s: Fight): void {
+  private boxes(s: Fight): void {
+    const c = this.ctx;
+    c.save(); c.lineWidth = 2;
+    for (const f of [s.worker, s.player]) {
+      const geometry = fighterGeometry(f);
+      for (const kind of ['hurt', 'hit'] as const) {
+        c.strokeStyle = kind === 'hit' ? '#ff4264' : '#42e8ef';
+        c.fillStyle = kind === 'hit' ? '#ff426433' : '#42e8ef18';
+        for (const b of geometry[kind]) {
+          c.fillRect(b.left, 820 - b.top, b.right - b.left, b.top - b.bottom);
+          c.strokeRect(b.left, 820 - b.top, b.right - b.left, b.top - b.bottom);
+        }
+      }
+    }
+    c.font = 'bold 18px Arial'; c.textAlign = 'left';
+    c.fillStyle = '#42e8ef'; c.fillText('ГОЛУБОЙ — УЯЗВИМОСТЬ', 48, 150);
+    c.fillStyle = '#ff4264'; c.fillText('КРАСНЫЙ — УДАР', 48, 176);
+    c.restore();
+  }
+  draw(s: Fight, showBoxes = false): void {
     const c = this.ctx;
     c.clearRect(0, 0, 1600, 900); c.save();
     if (!this.reducedMotion) c.translate(Math.sin(this.visualTime * 91) * this.shake, Math.cos(this.visualTime * 73) * this.shake * .4);
@@ -172,6 +192,7 @@ export class FightRenderer {
     const vignette = c.createRadialGradient(800, 430, 340, 800, 430, 1000);
     vignette.addColorStop(0, '#100d1900'); vignette.addColorStop(1, '#160f2266'); c.fillStyle = vignette; c.fillRect(0, 0, 1600, 900);
     if (this.flash > 0 && !this.reducedMotion) { c.fillStyle = `rgba(255,195,145,${this.flash * .8})`; c.fillRect(0, 0, 1600, 900); }
+    if (showBoxes) this.boxes(s);
     c.restore();
   }
 }

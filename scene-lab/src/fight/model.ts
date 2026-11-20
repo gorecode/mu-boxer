@@ -7,7 +7,7 @@ export interface Input { left: boolean; right: boolean; down: boolean; block: bo
 export const idleInput = (): Input => ({ left: false, right: false, down: false, block: false, jump: false, light: false, heavy: false });
 export interface Move { windup: number; active: number; recovery: number; range: number; damage: number; level: 'high' | 'mid' | 'low' | 'overhead'; push: number; hitstun: number; stop: [number, number]; reaction: 'light' | 'heavy' | 'launch' | 'down'; lift: number }
 export const moves: Record<Attack, Move> = {
-  jab: { windup: .1, active: .09, recovery: .18, range: 215, damage: 8, level: 'mid', push: 18, hitstun: .4, stop: [.04, .065], reaction: 'light', lift: 0 },
+  jab: { windup: .1, active: .09, recovery: .18, range: 320, damage: 8, level: 'mid', push: 18, hitstun: .4, stop: [.04, .065], reaction: 'light', lift: 0 },
   heavy: { windup: .25, active: .12, recovery: .36, range: 250, damage: 20, level: 'mid', push: 60, hitstun: .42, stop: [.065, .09], reaction: 'heavy', lift: 0 },
   low: { windup: .17, active: .1, recovery: .3, range: 235, damage: 10, level: 'low', push: 25, hitstun: .38, stop: [.04, .065], reaction: 'light', lift: 0 },
   upper: { windup: .2, active: .12, recovery: .4, range: 250, damage: 23, level: 'overhead', push: 55, hitstun: .6, stop: [.07, .10], reaction: 'launch', lift: 620 },
