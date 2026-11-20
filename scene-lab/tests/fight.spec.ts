@@ -126,3 +126,66 @@ test('visible control buttons work with the keyboard and Space still activates t
   await page.locator('#pause').focus(); await page.keyboard.press('Space');
   await expect(page.locator('#arena')).toHaveAttribute('data-phase', 'paused');
 });
+
+test('a held attack does not repeat; quick taps survive between render frames and pause clears pending input', async ({ page }) => {
+  await load(page); await begin(page);
+  await page.keyboard.down('j'); await page.clock.runFor(700);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', '');
+  await page.clock.runFor(400);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', '');
+  await page.keyboard.up('j'); await page.clock.runFor(30);
+  await page.keyboard.press('k'); await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'heavy');
+  await page.keyboard.press('j'); await page.clock.runFor(20);
+  await expect(page.locator('#arena')).toHaveAttribute('data-buffered', 'jab');
+  await page.keyboard.press('Escape'); await page.locator('#resume').click(); await page.clock.runFor(850);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', '');
+  await expect(page.locator('#arena')).toHaveAttribute('data-buffered', '');
+});
+
+test('real keyboard and touch presses chain confirmed hits into a launching uppercut', async ({ page }, info) => {
+  await load(page); await page.locator('#difficulty').selectOption('warmup'); await begin(page);
+  await page.keyboard.down('d');
+  for (let i = 0; i < 40 && Math.abs(await number(page, 'worker-x') - await number(page, 'player-x')) > 300; i++) await page.clock.runFor(40);
+  await page.keyboard.up('d'); await page.keyboard.down('l'); await page.clock.runFor(1100); await page.keyboard.up('l');
+  await page.keyboard.down('d');
+  for (let i = 0; i < 30 && Math.abs(await number(page, 'worker-x') - await number(page, 'player-x')) > 180; i++) await page.clock.runFor(20);
+  await page.keyboard.up('d');
+  if (info.project.name === 'mobile') await page.locator('[data-input=light]').tap();
+  else await page.keyboard.press('j');
+  await page.clock.runFor(130);
+  await expect(page.locator('#arena')).toHaveAttribute('data-combo', '1');
+  if (info.project.name === 'mobile') await page.locator('[data-input=heavy]').tap();
+  else await page.keyboard.press('k');
+  await page.clock.runFor(310);
+  await expect(page.locator('#arena')).toHaveAttribute('data-combo', '2');
+  await page.keyboard.down('s');
+  if (info.project.name === 'mobile') await page.locator('[data-input=heavy]').tap();
+  else await page.keyboard.press('k');
+  await page.clock.runFor(340); await page.keyboard.up('s');
+  await expect(page.locator('#arena')).toHaveAttribute('data-combo', '3');
+  await expect(page.locator('#arena')).toHaveAttribute('data-worker-reaction', 'launch');
+  expect(await number(page, 'worker-y')).toBeGreaterThan(0);
+  await page.locator('.arena-shell').screenshot({ path: info.outputPath('fight-combo.png') });
+});
+
+test('short attack chords preserve the modifier at press time after every key is released', async ({ page }) => {
+  await load(page); await begin(page);
+  await page.keyboard.down('s'); await page.keyboard.press('k'); await page.keyboard.up('s'); await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'upper');
+  await page.keyboard.press('r'); await page.clock.runFor(1800);
+  await page.keyboard.press('k'); await page.keyboard.down('s'); await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'heavy');
+  await page.keyboard.up('s');
+});
+
+test('autorepeat after pause cannot create an attack until the held key is released and pressed again', async ({ page }) => {
+  await load(page); await begin(page);
+  await page.keyboard.down('j'); await page.clock.runFor(700);
+  await page.keyboard.press('Escape'); await page.locator('#resume').click();
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyJ', repeat: true, bubbles: true })));
+  await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', '');
+  await page.keyboard.up('j'); await page.keyboard.press('j'); await page.clock.runFor(30);
+  await expect(page.locator('#arena')).toHaveAttribute('data-player-action', 'jab');
+});

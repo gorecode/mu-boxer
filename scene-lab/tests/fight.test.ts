@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { fighterGeometry, overlaps } from '../src/fight/geometry.ts';
 import { test } from 'node:test';
 import { createFight, idleInput, moves, pauseFight, resumeFight, startFight, stepFight, type Fight, type Input, type Attack } from '../src/fight/model.ts';
 
@@ -9,6 +10,7 @@ function ready(): Fight {
   const s = createFight(); startFight(s); advance(s, 1.7); s.aiWait = 999;
   return s;
 }
+function actionKind(s: Fight): Attack | undefined { return s.player.action?.kind; }
 function duel(): Fight { const s = ready(); s.player.x = 600; s.worker.x = 800; return s; }
 function incoming(s: Fight, kind: Attack): void {
   s.worker.action = { kind, time: moves[kind].windup - .01, connected: false };
@@ -121,4 +123,127 @@ test('simulation rejects invalid time and a zero step changes no combat state', 
   const s = duel();
   for (const dt of [NaN, Infinity, -.1, .051]) assert.throws(() => stepFight(s, idleInput(), dt), RangeError);
   const before = JSON.stringify(s); stepFight(s, idleInput(), 0); assert.equal(JSON.stringify(s), before);
+});
+
+test('attacks use press edges; holding produces one swing and re-press produces another', () => {
+  const s = duel(); advance(s, 1.1, { light: true }); assert.equal(s.hits, 1); assert.equal(s.player.action, null);
+  s.worker.x = s.player.x + 200; advance(s, .02); advance(s, .2, { light: true }); assert.equal(s.hits, 2);
+});
+
+test('120ms buffer survives release and hitstop but expires during a long recovery', () => {
+  const s = ready(); s.player.action = { kind: 'heavy', time: .69, connected: false };
+  stepFight(s, { ...idleInput(), light: true }, 1/120); advance(s, .06);
+  assert.equal(s.player.action?.kind, 'jab'); assert.equal(s.buffered, null);
+  const expired = ready(); advance(expired, .02, { heavy: true });
+  advance(expired, .02, { light: true }); advance(expired, .9);
+  assert.equal(expired.player.action, null); assert.equal(expired.buffered, null);
+  const stopped = ready(); stopped.player.stop = .2; stopped.hitstop = .2;
+  stepFight(stopped, { ...idleInput(), heavy: true }, 1/120); advance(stopped, .15);
+  assert.equal(stopped.player.action, null); assert.equal(stopped.buffered?.kind, 'heavy');
+  advance(stopped, .08); assert.equal(actionKind(stopped), 'heavy');
+});
+
+test('jump buffers before landing; pause and a fresh match discard pending attacks', () => {
+  const s = ready(); s.player.y = 5; s.player.vy = -100;
+  stepFight(s, { ...idleInput(), jump: true }, 1/120); advance(s, .08);
+  assert.ok(s.player.y > 10); assert.ok(s.player.vy > 0);
+  const paused = ready(); paused.player.stun = .06;
+  stepFight(paused, { ...idleInput(), heavy: true }, 1/120); assert.equal(paused.buffered?.kind, 'heavy');
+  pauseFight(paused); resumeFight(paused); advance(paused, .15);
+  assert.equal(paused.player.action, null); assert.equal(paused.buffered, null); assert.equal(createFight().buffered, null);
+});
+
+test('hit-only cancels form a real jab-heavy-upper combo with scaling, lunge and launch', () => {
+  const s = duel(); advance(s, .12, { light: true }); assert.equal(s.hits, 1);
+  advance(s, .02, { heavy: true }); assert.equal(s.buffered?.kind, 'heavy');
+  advance(s, .29); assert.equal(s.player.action?.kind, 'heavy'); assert.equal(s.hits, 2); assert.equal(s.combo, 2);
+  assert.equal(s.worker.hp, 95);
+  advance(s, .02, { down: true, heavy: true }); advance(s, .34);
+  assert.equal(s.player.action?.kind, 'upper'); assert.equal(s.combo, 3); assert.equal(s.hits, 3);
+  assert.equal(s.worker.hp, 78); assert.equal(s.worker.reaction, 'launch'); assert.ok(s.worker.y > 0);
+  assert.ok(s.player.x > 630);
+  advance(s, 1.4); assert.equal(s.comboActive, false); assert.equal(s.worker.y, 0); assert.equal(s.worker.reaction, null);
+});
+
+test('whiff and block cannot cancel; unsupported and repeated chain moves cannot cancel either', () => {
+  const miss = ready(); advance(miss, .15, { light: true }); advance(miss, .02, { heavy: true });
+  advance(miss, .14); assert.equal(miss.player.action?.kind, 'jab'); advance(miss, .15); assert.equal(miss.player.action, null);
+  const block = duel(); block.player.action = { kind: 'jab', time: .11, connected: true, result: 'block' };
+  advance(block, .02, { heavy: true }); assert.equal(block.player.action?.kind, 'jab');
+  for (const requested of [{ light: true }, { down: true, light: true }, { down: true, heavy: true }]) {
+    const s = duel(); s.player.action = { kind: 'jab', time: .11, connected: true, result: 'hit' };
+    advance(s, .02, requested); assert.equal(s.player.action?.kind, 'jab');
+  }
+  const capped = duel(); capped.player.action = { kind: 'heavy', time: .26, connected: true, result: 'hit', chain: 2 };
+  advance(capped, .02, { down: true, heavy: true }); assert.equal(capped.player.action?.kind, 'heavy');
+});
+
+test('separate hits after recovery start a new combo', () => {
+  const s = duel(); advance(s, .13, { light: true }); advance(s, .7);
+  assert.equal(s.comboActive, false); s.worker.x = s.player.x + 200;
+  advance(s, .16, { light: true }); assert.equal(s.hits, 2); assert.equal(s.combo, 1);
+});
+
+test('simultaneous active attacks trade in either orientation and can cause a double knockout', () => {
+  for (const facing of [1, -1] as const) {
+    const s = duel(); s.player.facing = facing; s.worker.facing = facing === 1 ? -1 : 1;
+    s.worker.x = s.player.x + facing * 160;
+    for (const f of [s.player, s.worker]) { f.hp = 8; f.action = { kind: 'jab', time: .11, connected: false }; }
+    stepFight(s, idleInput(), 1/120);
+    assert.equal(s.player.hp, 0); assert.equal(s.worker.hp, 0); assert.equal(s.phase, 'draw');
+    assert.equal(s.events.filter(e => e.type === 'hit').length, 2);
+  }
+});
+
+test('impact stops fighters independently, locates the contact and recovers from a sweep', () => {
+  const s = duel(); advance(s, .12, { light: true });
+  assert.ok(s.worker.stop > s.player.stop); const heldTime = s.player.action!.time;
+  advance(s, .025); assert.equal(s.player.action!.time, heldTime);
+  advance(s, .025); assert.ok(s.player.action!.time > heldTime); assert.ok(s.worker.stop > 0);
+  const swept = duel(); incoming(swept, 'sweep');
+  let contact: Fight['events'][number] | undefined;
+  for (let i = 0; i < 8; i++) { stepFight(swept, idleInput(), 1/120); contact ??= swept.events.find(e => e.type === 'hit'); }
+  assert.ok(contact); assert.equal(contact.attack, 'sweep'); assert.ok(contact.y >= 0 && contact.y <= 65);
+  assert.equal(swept.player.reaction, 'down'); assert.ok(swept.player.knockback < 0);
+  advance(swept, 1); assert.equal(swept.player.reaction, null); assert.equal(swept.player.stun, 0);
+});
+
+test('pose boxes follow facing and height, disappear outside active frames, and expose the extended arm', () => {
+  const s = duel(), p = s.player;
+  p.action = { kind: 'jab', time: .099, connected: false };
+  assert.equal(fighterGeometry(p).hit.length, 0);
+  p.action.time = .11;
+  const right = fighterGeometry(p);
+  assert.equal(right.hit.length, 1); assert.equal(right.hurt.length, 4);
+  assert.equal(right.hit[0].right, 750);
+  p.facing = -1; const left = fighterGeometry(p);
+  assert.equal(left.hit[0].left, 450); assert.equal(left.hit[0].right, 545);
+  p.y = 100; assert.equal(fighterGeometry(p).hit[0].top, left.hit[0].top + 100);
+  p.action.time = .19; assert.equal(fighterGeometry(p).hit.length, 0);
+  p.action = null; p.crouch = true; p.y = 0;
+  assert.equal(Math.max(...fighterGeometry(p).hurt.map(b => b.top)), 265);
+  p.crouch = false; p.reaction = 'down'; assert.equal(fighterGeometry(p).hurt[0].top, 85);
+  const a = { left: 0, bottom: 0, right: 10, top: 10 };
+  assert.equal(overlaps(a, { left: 10, bottom: 2, right: 20, top: 8 }), true);
+  assert.equal(overlaps(a, { left: 10.001, bottom: 2, right: 20, top: 8 }), false);
+  assert.equal(overlaps(a, { left: 2, bottom: 10.001, right: 8, top: 20 }), false);
+});
+
+test('buffer executes just before recovery but cannot wait beyond 120ms; explicit browser press survives held state', () => {
+  for (const [stun, expected] of [[.1, 'jab'], [.15, undefined]] as const) {
+    const s = ready(); s.player.stun = stun;
+    stepFight(s, { ...idleInput(), light: true }, 1/120); advance(s, .2);
+    assert.equal(s.player.action?.kind, expected);
+  }
+  const s = duel(); s.held.heavy = true;
+  stepFight(s, { ...idleInput(), heavy: true, attackPressed: 'heavy' }, 1/120);
+  assert.equal(s.player.action?.kind, 'heavy');
+});
+
+test('airborne down input does not select grounded crouching attacks', () => {
+  for (const [button, expected] of [['light', 'jab'], ['heavy', 'heavy']] as const) {
+    const s = ready(); s.player.y = 120; s.player.vy = 100;
+    stepFight(s, { ...idleInput(), down: true, [button]: true }, 1/120);
+    assert.equal(s.player.action?.kind, expected); assert.equal(s.player.crouch, false);
+  }
 });
