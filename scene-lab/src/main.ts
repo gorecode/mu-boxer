@@ -5,8 +5,11 @@ import { chapterAt, compileFilm } from './film.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
 import { subtitleAt } from './speech.ts';
+import { createGsapCamera } from './gsap-camera.ts';
 
 const film = compileFilm(scenes);
+const sliderCamera = new URLSearchParams(location.search).get('animation') === 'native'
+  ? undefined : createGsapCamera(scenes.find(scene => scene.id === 'slider')!);
 const viewingScenes = [...scenes, film.scene];
 const initial = readSceneLink(location.hash, viewingScenes);
 let timeline = new Timeline(initial.scene);
@@ -190,11 +193,13 @@ function render(): void {
       else button.removeAttribute('aria-current');
     }
   }
-  const visual = visualAt(scene, timeline.time, reducedMotion.matches);
+  const cameraTrack = source.id === 'slider' && !reducedMotion.matches ? sliderCamera : undefined;
+  const visual = visualAt(scene, timeline.time, reducedMotion.matches || !!cameraTrack);
+  const camera = cameraTrack?.at(timeline.time - (chapter?.start ?? 0)) ?? visual.camera;
   if (art.getAttribute('src') !== visual.image) art.src = visual.image;
   art.alt = visual.imageAlt;
-  art.style.transform = `scale(${visual.camera.scale})`;
-  art.style.transformOrigin = `${visual.camera.x}% ${visual.camera.y}%`;
+  art.style.transform = `scale(${camera.scale})`;
+  art.style.transformOrigin = `${camera.x}% ${camera.y}%`;
   element('scene-blackout').style.opacity = String(started ? blackoutAt(scene, timeline.time) : 0);
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
@@ -355,7 +360,10 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF') void fullscreen();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-window.addEventListener('pagehide', (event) => { pause(); if (!event.persisted) audio.dispose(); });
+window.addEventListener('pagehide', (event) => {
+  pause();
+  if (!event.persisted) { audio.dispose(); sliderCamera?.dispose(); }
+});
 function frame(now: number): void {
   const wasPlaying = timeline.playing;
   const sounds = timeline.advance(Math.max(0, now - previous));
