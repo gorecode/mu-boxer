@@ -8,8 +8,9 @@ import { subtitleAt } from './speech.ts';
 import { createSceneAnimation } from './gsap-scene.ts';
 
 const film = compileFilm(scenes);
+const filmPage = document.body.dataset.view === 'film';
 const animations = new Map(scenes.map(scene => [scene.id, createSceneAnimation(scene)]));
-const viewingScenes = [...scenes, film.scene];
+const viewingScenes = filmPage ? [film.scene] : [...scenes, film.scene];
 const initial = readSceneLink(location.hash, viewingScenes);
 let timeline = new Timeline(initial.scene);
 timeline.seek(initial.time);
@@ -23,11 +24,13 @@ let imageGeneration = 0;
 let lastChapter = '';
 let speechKey = '';
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+document.body.classList.toggle('film-view', filmPage);
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <header class="masthead">
     <a class="wordmark" href="#" aria-label="Месть боксёра 2, начало">МЕСТЬ БОКСЁРА <span>II</span></a>
     <span class="lab-mark"><i></i> СТЕНД СЮЖЕТНЫХ СЦЕН</span>
+    <a class="view-link" href="${filmPage ? './' : './film.html'}">${filmPage ? 'К сценам' : 'Смотреть игрофильм'} ↗</a>
   </header>
   <main>
     <div class="scene-heading"><div><p class="eyebrow" id="chapter"></p><h1 id="title"></h1></div>
@@ -79,7 +82,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             </div>
           </div>
         </div>
-        <p class="status" id="status" role="status" aria-live="polite">Серьёзный разговор. Нелепые обстоятельства.</p>
+        <p class="status" id="status" role="status" aria-live="polite">${filmPage ? '' : 'Серьёзный разговор. Нелепые обстоятельства.'}</p>
         <div class="under-screen"><span>КОМИКС · МУ-ОЗВУЧКА</span><button class="text-button" id="share">Ссылка на этот момент ↗</button></div>
       </section>
       <aside class="review-panel" aria-label="Инструменты просмотра">
@@ -112,7 +115,7 @@ function populate(): void {
   const scene = timeline.scene;
   element('stage').classList.toggle('hard-cuts', !!scene.hardCuts);
   if (status.textContent?.startsWith('Не удалось загрузить иллюстрацию.')) {
-    status.textContent = 'Серьёзный разговор. Нелепые обстоятельства.';
+    status.textContent = filmPage ? '' : 'Серьёзный разговор. Нелепые обстоятельства.';
   }
   element('chapter').textContent = scene.subtitle;
   element('title').textContent = scene.title;

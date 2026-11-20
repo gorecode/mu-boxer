@@ -114,3 +114,36 @@ footer b { margin: 0 6px; color: #58483b; }
 .title-card p { font: clamp(28px, 4vw, 58px)/1.15 Impact, 'Arial Narrow', sans-serif; margin: 12px 0; color: #f1d9c7; }
 .scene-setting { position: absolute; top: 39px; left: 19px; max-width: calc(100% - 38px); padding: 5px 7px; background: #170e0cc9; color: #f1d9c7; font-size: 9px; line-height: 1.4; letter-spacing: 1px; }
 .stage.hard-cuts img { transition: none; }
+
+.view-link { color: #d8b8a4; font-size: 12px; text-decoration: none; padding: 12px 0; }
+.film-view .lab-mark, .film-view .scene-heading, .film-view .frame-counter,
+.film-view .panel-header, .film-view .panel-foot, .film-view .cue-list,
+.film-view #mode-select, .film-view label[for=mode-select], .film-view footer { display: none; }
+.film-view .masthead { padding: 8px max(16px, env(safe-area-inset-right)) 8px max(16px, env(safe-area-inset-left)); }
+.film-view main { padding: 14px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+.film-view .workspace { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.film-view .screen-column, .film-view .review-panel { width: 100%; max-width: min(100%, calc((100svh - 180px) * 4 / 3)); justify-self: center; }
+.film-view .transport { padding-top: 8px; }
+.film-view .transport-row { gap: 8px; }
+.film-view .icon-button, .film-view .play-button { min-width: 44px; min-height: 44px; }
+.film-view #scrub { height: 24px; margin: 0 0 4px; background-size: 100% 3px; background-repeat: no-repeat; background-position: center; }
+.film-view #scrub::-webkit-slider-thumb { width: 16px; height: 20px; }
+.film-view .status:empty { display: none; }
+.film-view .under-screen { margin-top: 6px; padding-top: 6px; }
+.film-view .review-panel { display: flex; align-items: center; gap: 12px; padding: 10px 12px; }
+.film-view .review-panel .field-label { margin: 0; }
+.film-view #scene-select { flex: 1; min-width: 0; width: auto; min-height: 44px; }
+.film-view .review-settings { margin: 0; gap: 8px; }
+.film-view #speed { min-height: 44px; }
+@media (max-width: 760px) {
+  .lab-mark { display: none; }
+  .view-link { font-size: 11px; }
+  .film-view .screen-column, .film-view .review-panel { max-width: 100%; }
+  .film-view .sound-controls { margin-left: 0; }
+  .film-view .review-panel { flex-wrap: wrap; gap: 8px; }
+  .film-view #scene-select { flex-basis: 75%; }
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .film-view main { padding-top: 4px; }
+  .film-view .screen-column, .film-view .review-panel { max-width: calc((100svh - 140px) * 4 / 3); }
+}
