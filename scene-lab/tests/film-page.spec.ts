@@ -92,11 +92,14 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 844, height: 390 }
     const controls = await page.locator('.transport-row').boundingBox();
     expect(controls!.y + controls!.height).toBeLessThanOrEqual(viewport.height);
     await page.locator('#fullscreen').click();
-    await expect(page.locator('#status')).toHaveText('Полный экран недоступен в этом браузере.');
+    await expect(page.locator('#player')).toHaveClass(/is-expanded/);
+    await expect(page.locator('#fullscreen')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('#start').click();
     await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Пауза');
     await page.locator('#play').click();
     await expect(page.locator('#play')).toHaveAttribute('aria-label', 'Воспроизвести');
+    await page.locator('#fullscreen').click();
+    await expect(page.locator('#player')).not.toHaveClass(/is-expanded/);
   });
 }
 
