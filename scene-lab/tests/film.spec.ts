@@ -126,7 +126,7 @@ test('a single uninterrupted film play reaches all ten chapters and stops at the
     const browser = window as unknown as Window & { playedTitles: string[] };
     const title = document.querySelector('#title')!;
     browser.playedTitles = [title.textContent!];
-    new MutationObserver(() => browser.playedTitles.push(title.textContent!)).observe(title, { childList: true });
+    new MutationObserver(() => browser.playedTitles.push(title.textContent!)).observe(title, { childList: true, characterData: true, subtree: true });
   });
   await page.locator('#mute').click();
   await page.locator('#speed').selectOption('2');
