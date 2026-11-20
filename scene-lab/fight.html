@@ -12,6 +12,8 @@
       <div class="fighter-hud worker-hud"><div class="name-row"><strong>РАБОЧИЙ</strong><span id="worker-hp">120 / 120</span></div><div class="health-track"><div id="worker-health" role="progressbar" aria-label="Здоровье Рабочего" aria-valuemin="0" aria-valuemax="120" aria-valuenow="120"></div></div><div class="guard-track"><div id="worker-guard" role="progressbar" aria-label="Защита Рабочего" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div></div></div>
     </div>
     <div id="callout" aria-hidden="true"></div>
+    <div id="ko-callout" aria-hidden="true" hidden></div>
+    <div id="finish-fade" aria-hidden="true"></div>
     <div id="overlay" class="overlay">
       <div class="intro-card" id="intro-card"><span class="eyebrow">ДВОР У УЧАСТКОВОГО</span><h1>ПРИДЁТСЯ<br><em>ПОДВИНУТЬСЯ.</em></h1><p id="intro-copy">Дверь рядом. Путь закрыт.<br>У каждого свои аргументы.</p><div class="selection"><label for="difficulty">Сложность</label><select id="difficulty"><option value="street">Улица</option><option value="warmup">Разминка</option></select></div><button id="start" class="primary" disabled>ЗАГРУЗКА РИСУНКОВ…</button><p class="load-note" id="load-status" role="status">Готовим двор и бойцов.</p></div>
       <div id="pause-card" class="pause-card" hidden><span class="eyebrow">ПЕРЕДЫШКА</span><h2>НЕ РАСХОДИТЬСЯ.</h2><p>Бой на паузе.</p><button id="resume" class="primary">ПРОДОЛЖИТЬ</button><button id="pause-restart" class="text-button">Начать заново</button></div>

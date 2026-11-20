@@ -47,6 +47,8 @@ test('AI can finish the match, result is stable and restart restores health', as
   test.setTimeout(60_000);
   await load(page); await begin(page);
   for (let i = 0; i < 12 && await page.locator('#arena').getAttribute('data-phase') === 'fighting'; i++) await page.clock.runFor(2000);
+  await expect(page.locator('#arena')).toHaveAttribute('data-phase', 'ending');
+  await expect(page.locator('#result-card')).toBeHidden(); await page.clock.runFor(3000);
   await expect(page.locator('#arena')).toHaveAttribute('data-phase', 'loss');
   await expect(page.locator('#result-title')).toHaveText('НЕ ТОТ АРГУМЕНТ.');
   const hp = await page.locator('#player-hp').textContent(); await page.clock.runFor(3000);
@@ -56,8 +58,21 @@ test('AI can finish the match, result is stable and restart restores health', as
   await expect(page.locator('#worker-health')).toHaveAttribute('aria-valuenow', '120');
 });
 
-test('a player can win through actual movement and attacks, then continue to the next story scene', async ({ page }) => {
+test('a player sees the fall, animated KO and fade before victory, then continues to the next story scene', async ({ page }, info) => {
   test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const seen: string[] = []; (window as Window & { endingImages?: string[] }).endingImages = seen;
+    CanvasRenderingContext2D.prototype.drawImage = new Proxy(CanvasRenderingContext2D.prototype.drawImage, {
+      apply(draw, context, args) {
+        const image = args[0], stage = document.querySelector<HTMLCanvasElement>('#arena')?.dataset.ending;
+        if (image instanceof HTMLImageElement && stage) {
+          const entry = `${stage}:${image.src.split('/').pop()}`;
+          if (!seen.includes(entry)) seen.push(entry);
+        }
+        return Reflect.apply(draw, context, args);
+      },
+    });
+  });
   await load(page); await page.locator('#difficulty').selectOption('warmup'); await begin(page);
   for (let i = 0; i < 260; i++) {
     if (await page.locator('#arena').getAttribute('data-phase') !== 'fighting') break;
@@ -68,7 +83,35 @@ test('a player can win through actual movement and attacks, then continue to the
     await page.clock.runFor(180);
   }
   await page.keyboard.up('a'); await page.keyboard.up('d'); await page.keyboard.up('k');
-  await expect(page.locator('#arena')).toHaveAttribute('data-phase', 'win');
+  const arena = page.locator('#arena'), title = page.locator('#ko-callout'), fade = page.locator('#finish-fade');
+  await expect(arena).toHaveAttribute('data-phase', 'ending'); await expect(arena).toHaveAttribute('data-ending', 'fall');
+  await expect(page.locator('#worker-hp')).toHaveText('0 / 120'); await expect(page.locator('#result-card')).toBeHidden();
+  await expect(title).toBeHidden(); await expect(fade).toHaveCSS('opacity', '0');
+  expect(await page.evaluate(() => (window as Window & { endingImages?: string[] }).endingImages)).toContain('fall:worker-6.webp');
+  const firstImage = await arena.evaluate((c: HTMLCanvasElement) => c.toDataURL());
+  await page.clock.runFor(100); expect(await arena.evaluate((c: HTMLCanvasElement) => c.toDataURL())).not.toBe(firstImage);
+  await page.locator('.arena-shell').screenshot({ path: info.outputPath('ending-fall.png') });
+  await page.keyboard.press('Escape'); await expect(arena).toHaveAttribute('data-phase', 'paused');
+  const fallTime = await arena.getAttribute('data-ending-time'), height = await arena.getAttribute('data-worker-y');
+  await page.clock.runFor(1000); await expect(arena).toHaveAttribute('data-ending-time', fallTime!); await expect(arena).toHaveAttribute('data-worker-y', height!);
+  await page.locator('#resume').click();
+  for (let i = 0; i < 40 && await arena.getAttribute('data-ending') === 'fall'; i++) await page.clock.runFor(50);
+  await expect(arena).toHaveAttribute('data-ending', 'ko'); await expect(title).toBeVisible(); await expect(title).toHaveText('K.O.');
+  expect(await page.evaluate(() => (window as Window & { endingImages?: string[] }).endingImages)).toContain('ko:worker-11.webp');
+  expect(await number(page, 'worker-y')).toBe(0); await expect(fade).toHaveCSS('opacity', '0'); await expect(page.locator('#result-card')).toBeHidden();
+  const large = await title.evaluate(el => getComputedStyle(el).transform);
+  await page.clock.runFor(160); expect(await title.evaluate(el => getComputedStyle(el).transform)).not.toBe(large);
+  await page.locator('.arena-shell').screenshot({ path: info.outputPath('ending-ko.png') });
+  for (let i = 0; i < 60 && await arena.getAttribute('data-ending') === 'ko'; i++) await page.clock.runFor(20);
+  await expect(arena).toHaveAttribute('data-ending', 'fade'); await page.clock.runFor(220);
+  const opacity = Number(await fade.evaluate(el => getComputedStyle(el).opacity)); expect(opacity).toBeGreaterThan(.2); expect(opacity).toBeLessThan(.8);
+  await expect(page.locator('#result-card')).toBeHidden(); await page.locator('.arena-shell').screenshot({ path: info.outputPath('ending-fade.png') });
+  await page.evaluate(() => window.dispatchEvent(new Event('blur'))); await expect(arena).toHaveAttribute('data-phase', 'paused');
+  const fadeTime = await arena.getAttribute('data-ending-time'); await page.clock.runFor(1000);
+  await expect(arena).toHaveAttribute('data-ending-time', fadeTime!); expect(Number(await fade.evaluate(el => getComputedStyle(el).opacity))).toBe(opacity);
+  await page.locator('#resume').click(); await page.clock.runFor(700);
+  await expect(arena).toHaveAttribute('data-phase', 'win'); await expect(page.locator('#restart')).toBeFocused();
+  await page.locator('.arena-shell').screenshot({ path: info.outputPath('ending-result.png') });
   await expect(page.locator('#result-title')).toHaveText('ВОПРОС РЕШЁН.');
   await expect(page.locator('#next-scene')).toHaveAttribute('href', './index.html#scene=precinct&t=0');
 });

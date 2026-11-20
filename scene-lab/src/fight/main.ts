@@ -1,7 +1,7 @@
 import './style.css';
 import { mountTraining } from './training.ts';
 import { celAt } from './moves.ts';
-import { createFight, idleInput, pauseFight, resumeFight, startFight, stepFight, type Input, type Phase } from './model.ts';
+import { createFight, endingTiming, idleInput, pauseFight, resumeFight, startFight, stepFight, type Input, type Phase } from './model.ts';
 import { FightAudio, FightRenderer, loadAssets } from './render.ts';
 
 type Button = Exclude<keyof Input, 'attackPressed'>;
@@ -18,6 +18,7 @@ const difficulty = element<HTMLSelectElement>('difficulty');
 const overlay = element('overlay');
 const hitboxes = element<HTMLInputElement>('hitboxes');
 const audio = new FightAudio();
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let fight = createFight();
 let renderer: FightRenderer | undefined;
 let lastPhase: Phase | undefined;
@@ -100,11 +101,20 @@ function update(): void {
   canvas.dataset.loaded = renderer ? 'true' : 'false';
   const ended = phase === 'win' || phase === 'loss' || phase === 'draw';
   training.refresh();
-  overlay.hidden = phase === 'fighting' || phase === 'countdown';
+  overlay.hidden = phase === 'fighting' || phase === 'countdown' || phase === 'ending';
+  const ending = fight.ending, title = element('ko-callout');
+  const progress = ending ? Math.min(1, ending.elapsed / endingTiming[ending.stage]) : 0;
+  title.hidden = !ending || ending.stage === 'fall';
+  title.textContent = ending?.reason === 'time' ? 'ВРЕМЯ!' : ending?.result === 'draw' ? 'DOUBLE K.O.' : 'K.O.';
+  title.style.transform = `translate(-50%, -50%) scale(${reducedMotion || ending?.stage !== 'ko' ? 1 : 1 + .7 * Math.max(0, 1 - ending.elapsed / .25) ** 3})`;
+  title.style.opacity = String(ending?.stage === 'fade' ? 1 - progress : 1);
+  element('finish-fade').style.opacity = String(ending?.stage === 'fade' ? progress * .92 : 0);
+  canvas.dataset.ending = ending?.stage ?? ''; canvas.dataset.endingTime = String(ending?.elapsed ?? 0);
+  canvas.dataset.endingReason = ending?.reason ?? '';
   element('intro-card').hidden = phase !== 'menu';
   element('pause-card').hidden = phase !== 'paused';
   element('result-card').hidden = !ended;
-  pause.disabled = !['fighting', 'countdown', 'paused'].includes(phase);
+  pause.disabled = !['fighting', 'countdown', 'ending', 'paused'].includes(phase);
   pause.firstChild!.textContent = phase === 'paused' ? 'ПРОДОЛЖИТЬ ' : 'ПАУЗА ';
   let callout = '';
   if (phase === 'countdown') callout = fight.countdown > .55 ? 'БОКСЁР ПРОТИВ РАБОЧЕГО' : 'БОЙ!';
@@ -113,13 +123,18 @@ function update(): void {
   const attack = fight.worker.action;
   let hint = 'СОКРАТИ ДИСТАНЦИЮ. УДАРЬ ПОСЛЕ ПРОМАХА.';
   if (attack && attack.time < .75) hint = attack.kind === 'sweep' ? 'ЛОПАТА НИЗКО — ПРЫГАЙ ИЛИ БЛОКИРУЙ СИДЯ' : attack.kind === 'overhead' ? 'УДАР СВЕРХУ — БЛОК СТОЯ ИЛИ ОТСТУПИ' : 'ТЫЧОК — ПРИСЯДЬ ИЛИ ПОСТАВЬ БЛОК';
-  element('fight-hint').textContent = hint;
+  element('fight-hint').textContent = phase === 'ending' ? '' : hint;
   if (lastPhase !== phase) {
-    const labels: Record<Phase, string> = { menu: 'Двор у участкового', countdown: 'Боксёр против Рабочего', fighting: 'Бой идёт', paused: 'Пауза', win: 'Победа Боксёра', loss: 'Победа Рабочего', draw: 'Ничья' };
+    const labels: Record<Phase, string> = { menu: 'Двор у участкового', countdown: 'Боксёр против Рабочего', fighting: 'Бой идёт', ending: 'Завершение боя', paused: 'Пауза', win: 'Победа Боксёра', loss: 'Победа Рабочего', draw: 'Ничья' };
     element('state-label').textContent = labels[phase];
+    if (phase === 'ending') clearInput();
     if (ended) { result(); clearInput(); element('restart').focus({ preventScroll: true }); }
     if (phase === 'paused') element('resume').focus({ preventScroll: true });
     lastPhase = phase;
+  }
+  if (phase === 'ending' && ending?.stage === 'ko') {
+    const label = ending.reason === 'ko' ? 'Нокаут' : 'Время вышло';
+    if (element('state-label').textContent !== label) element('state-label').textContent = label;
   }
 }
 async function load(): Promise<void> {
@@ -128,7 +143,7 @@ async function load(): Promise<void> {
   element('load-status').textContent = 'Готовим двор и бойцов.';
   try {
     const assets = await loadAssets();
-    renderer = new FightRenderer(canvas, assets, matchMedia('(prefers-reduced-motion: reduce)').matches);
+    renderer = new FightRenderer(canvas, assets, reducedMotion);
     renderer.draw(fight, hitboxes.checked); start.disabled = false; start.textContent = 'НАЧАТЬ БОЙ →';
     element('load-status').textContent = 'Клавиатура или кнопки под ареной.';
   } catch (error) {
@@ -217,12 +232,12 @@ window.addEventListener('pagehide', setPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) setPause(); });
 function frame(now: number): void {
   const dt = lastFrame ? Math.min(.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
-  const active = (fight.phase === 'fighting' || fight.phase === 'countdown') && !training.frozen();
+  const active = (fight.phase === 'fighting' || fight.phase === 'countdown' || fight.phase === 'ending') && !training.frozen();
   if (active) {
     accumulator += dt * training.speed();
     while (accumulator >= 1 / 120) {
       tick(); accumulator -= 1 / 120;
-      if (fight.phase !== 'fighting' && fight.phase !== 'countdown') { accumulator = 0; break; }
+      if (fight.phase !== 'fighting' && fight.phase !== 'countdown' && fight.phase !== 'ending') { accumulator = 0; break; }
     }
   }
   if (!active) accumulator = 0;

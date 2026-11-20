@@ -114,3 +114,7 @@ footer { display: flex; justify-content: space-between; font-size: 8px; letter-s
 
 .guard-track { position: relative; }
 .low-guard::after { content: '!'; position: absolute; right: -10px; top: -6px; color: #ffbb99; font-size: 14px; font-weight: bold; }
+
+#ko-callout { position: absolute; z-index: 1; left: 50%; top: 40%; width: 95%; text-align: center; pointer-events: none; font: italic 900 clamp(44px, 12vw, 180px)/1 Impact, Arial, sans-serif; letter-spacing: -.04em; color: #f2ac74; -webkit-text-stroke: 1px #ffe4b7; text-shadow: 5px 6px 0 #762c35, 9px 11px 0 #241421, 0 0 40px #2a1527; transform-origin: center; }
+#finish-fade { position: absolute; z-index: 2; inset: 0; background: #100c14; opacity: 0; pointer-events: none; }
+.overlay { z-index: 3; }
