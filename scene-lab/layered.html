@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GSAP · многослойный этюд</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <main>
+      <a href="./">← Основной стенд</a>
+      <p class="eyebrow">GSAP / ЭКСПЕРИМЕНТ 02</p>
+      <h1>Город. Справка. Печать.</h1>
+      <p>Технический этюд вне сюжета. Одинаковая постановка, два способа анимации.</p>
+      <div id="layer-stage" role="img" aria-label="Город, передний план, справка и штамп ОБЕД">
+        <img id="city" src="./art/epilogue-city-v1.webp" alt="Промышленный город из эпилога" />
+        <div id="rail" aria-hidden="true"></div>
+        <div id="paper" aria-hidden="true"><small>МИНИСТЕРСТВО БЫТОВЫХ ОБСТОЯТЕЛЬСТВ</small><h2>СПРАВКА</h2><p>ОБ ОТСУТСТВИИ СУДИМОСТИ</p><hr /><hr /><hr /><span id="stamp">ОБЕД</span></div>
+        <div id="black" aria-hidden="true"></div>
+      </div>
+      <div class="controls">
+        <label>Анимация <select id="engine"><option value="gsap">GSAP</option><option value="native">Без библиотеки</option></select></label>
+        <label>Начальная выдержка <select id="lead"><option value="800">0,8 с</option><option value="1300">1,3 с</option></select></label>
+        <label>Скорость <select id="speed"><option value="1">1×</option><option value="2">2×</option></select></label>
+      </div>
+      <label class="seek">Позиция <input id="seek" type="range" min="0" max="6000" step="1" value="0" /></label>
+      <div class="controls"><button id="play" disabled>Смотреть</button><button id="restart" disabled>Сначала</button><output id="time">0.00 / 6.00 с</output></div>
+      <p id="status" role="status">Загрузка иллюстрации…</p>
+      <p class="note">Камера города и передний план движутся параллельно; лист появляется, затем штамп оседает с отскоком. После выдержки — затемнение. Переключение движка сохраняет позицию и ставит просмотр на паузу.</p>
+    </main>
+    <script type="module" src="/src/experiments/layers/main.ts"></script>
+  </body>
+</html>

@@ -1,12 +1,14 @@
 import './style.css';
 import { scenes } from './scenes.ts';
-import { blackoutAt, cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
+import { cueAt, readSceneLink, sceneLink, sceneImages, visualAt } from './scene.ts';
 import { chapterAt, compileFilm } from './film.ts';
 import { Timeline } from './timeline.ts';
 import { SceneAudio } from './audio.ts';
 import { subtitleAt } from './speech.ts';
+import { createSceneAnimation } from './gsap-scene.ts';
 
 const film = compileFilm(scenes);
+const animations = new Map(scenes.map(scene => [scene.id, createSceneAnimation(scene)]));
 const viewingScenes = [...scenes, film.scene];
 const initial = readSceneLink(location.hash, viewingScenes);
 let timeline = new Timeline(initial.scene);
@@ -35,6 +37,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
         <div class="stage" id="stage" tabindex="0" aria-label="Кадр сцены. Пробел — пауза, стрелки — смена кадра">
           <img id="art" alt="" draggable="false" />
           <div class="stage-shade"></div>
+          <div class="stage-texture" aria-hidden="true"></div>
           <div class="scene-flash" id="scene-flash" aria-hidden="true" hidden></div>
           <div class="scene-blackout" id="scene-blackout" aria-hidden="true"></div>
           <span class="frame-counter" id="frame-counter"></span>
@@ -190,16 +193,23 @@ function render(): void {
       else button.removeAttribute('aria-current');
     }
   }
-  const visual = visualAt(scene, timeline.time, reducedMotion.matches);
+  const animation = animations.get(source.id)!.at(timeline.time - (chapter?.start ?? 0), reducedMotion.matches);
+  const visual = visualAt(scene, timeline.time, true);
+  const camera = animation.camera;
   if (art.getAttribute('src') !== visual.image) art.src = visual.image;
   art.alt = visual.imageAlt;
-  art.style.transform = `scale(${visual.camera.scale})`;
-  art.style.transformOrigin = `${visual.camera.x}% ${visual.camera.y}%`;
-  element('scene-blackout').style.opacity = String(started ? blackoutAt(scene, timeline.time) : 0);
+  art.style.transform = `scale(${camera.scale})`;
+  art.style.transformOrigin = `${camera.x}% ${camera.y}%`;
+  element('scene-blackout').style.opacity = String(started ? animation.blackout : 0);
+  element('scene-flash').style.opacity = String(animation.flash);
+  element('fight').style.setProperty('--fight-scale', String(animation.fightScale));
+  element('fight').style.setProperty('--fight-y', `${animation.fightY}px`);
+  element('title-card').style.opacity = String(animation.titleOpacity);
+  element('title-card').style.transform = `translateY(${animation.titleY}px)`;
   element('caption-typed').textContent = subtitleAt(cue.speech, timeline.time - cue.start);
   syncSpeech();
   element('subtitle').hidden = !started || !cue.text || timeline.time - cue.start < (cue.speechDelay ?? 0);
-  element('scene-flash').hidden = !started || !timeline.playing || !cue.flash || reducedMotion.matches;
+  element('scene-flash').hidden = !started || !timeline.playing || animation.flash <= 0 || reducedMotion.matches;
   element('fight').hidden = !started || !cue.fight;
   element('title-card').hidden = !started || !cue.titleCard;
   element('scene-setting').hidden = !started || !cue.setting || !!cue.titleCard;
@@ -355,7 +365,10 @@ window.addEventListener('keydown', (event) => {
   if (event.code === 'KeyF') void fullscreen();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
-window.addEventListener('pagehide', (event) => { pause(); if (!event.persisted) audio.dispose(); });
+window.addEventListener('pagehide', (event) => {
+  pause();
+  if (!event.persisted) { audio.dispose(); for (const animation of animations.values()) animation.dispose(); }
+});
 function frame(now: number): void {
   const wasPlaying = timeline.playing;
   const sounds = timeline.advance(Math.max(0, now - previous));
