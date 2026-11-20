@@ -99,3 +99,18 @@ footer { display: flex; justify-content: space-between; font-size: 8px; letter-s
   footer { font-size: 6px; letter-spacing: .8px; } .result-stats { gap: 16px; margin-bottom: 14px; font-size: 9px; } .result-stats b { font-size: 19px; } h2 { margin: 10px 0; } .result-card>a { margin-top: 12px; font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+
+.training-panel { border: 1px solid #68474a; padding: 16px; margin: 12px 0; background: #221921; }
+.training-panel summary { cursor: pointer; font-size: 12px; color: #edbc98; }
+.training-note, #training-stats, #training-status { font-size: 11px; line-height: 1.6; color: #d1b5a6; }
+.training-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 14px 0; }
+.training-panel label { display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: #c8a89c; min-width: 0; }
+.training-panel select, .training-panel input, .training-panel button { font: inherit; background: #35232d; color: #edd1bb; border: 1px solid #79544d; padding: 9px; max-width: 100%; }
+.training-panel button { font-size: 10px; min-height: 36px; }
+.move-editor { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.low-guard { outline: 1px solid #f48759; box-shadow: 0 0 9px #f4875977; }
+.touch-controls { flex-wrap: wrap; }
+@media (max-width: 600px) { .move-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); } .training-panel { padding: 10px; } .training-controls label { width: 100%; } }
+
+.guard-track { position: relative; }
+.low-guard::after { content: '!'; position: absolute; right: -10px; top: -6px; color: #ffbb99; font-size: 14px; font-weight: bold; }

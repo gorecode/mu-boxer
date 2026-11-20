@@ -1,4 +1,6 @@
 import './style.css';
+import { mountTraining } from './training.ts';
+import { celAt } from './moves.ts';
 import { createFight, idleInput, pauseFight, resumeFight, startFight, stepFight, type Input, type Phase } from './model.ts';
 import { FightAudio, FightRenderer, loadAssets } from './render.ts';
 
@@ -23,35 +25,39 @@ let accumulator = 0;
 let lastFrame = 0;
 let loading = false;
 let pendingJump = false;
+let pendingDodge = false;
 let pendingAttack: Input['attackPressed'];
 let lastDrawPhase: Phase | undefined;
 const keys = new Map<string, Button>();
 const pointers = new Map<number, Button>();
 const bindings: Record<string, Button> = {
   KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyS: 'down', ArrowDown: 'down',
-  KeyW: 'jump', ArrowUp: 'jump', Space: 'jump', KeyJ: 'light', KeyK: 'heavy', KeyL: 'block',
+  KeyW: 'jump', ArrowUp: 'jump', Space: 'jump', KeyJ: 'light', KeyK: 'heavy', KeyL: 'block', KeyU: 'dodge',
 };
 function clearInput(): void {
-  keys.clear(); pointers.clear(); pendingJump = false; pendingAttack = undefined;
+  keys.clear(); pointers.clear(); pendingJump = false; pendingDodge = false; pendingAttack = undefined;
   document.querySelectorAll('.touch-controls .active').forEach(button => button.classList.remove('active'));
 }
 function input(): Input {
   const current = idleInput();
   for (const key of [...keys.values(), ...pointers.values()]) current[key] = true;
   current.jump = pendingJump; pendingJump = false;
+  current.dodge = pendingDodge; pendingDodge = false;
   current.attackPressed = pendingAttack; pendingAttack = undefined;
   return current;
 }
 function queueAttack(action: Button): void {
+  if (action === 'dodge') pendingDodge = true;
   if (action !== 'light' && action !== 'heavy') return;
   const down = fight.player.y === 0 && [...keys.values(), ...pointers.values()].includes('down');
   pendingAttack = action === 'heavy' ? down ? 'upper' : 'heavy' : down ? 'low' : 'jab';
 }
 function reset(play = true): void {
   const chosen = difficulty.value === 'warmup' ? 'warmup' : 'street';
-  fight = createFight(chosen); renderer?.clear(); clearInput(); accumulator = 0; lastPhase = undefined; lastDrawPhase = undefined;
+  fight = createFight(chosen, element<HTMLInputElement>('training-mode').checked);
+  fight.training.dummy = element<HTMLSelectElement>('training-dummy').value as typeof fight.training.dummy; renderer?.clear(); clearInput(); accumulator = 0; lastPhase = undefined; lastDrawPhase = undefined;
   if (play) { startFight(fight); audio.resume(); canvas.focus({ preventScroll: true }); }
-  update();
+  training.reset(); update();
 }
 function setPause(): void { pauseFight(fight); clearInput(); audio.stop(); accumulator = 0; update(); }
 function resume(): void { resumeFight(fight); clearInput(); audio.resume(); accumulator = 0; canvas.focus({ preventScroll: true }); update(); }
@@ -72,18 +78,28 @@ function update(): void {
     element(`${name}-health`).style.width = `${fighter.hp / fighter.maxHp * 100}%`;
     element(`${name}-health`).setAttribute('aria-valuenow', String(fighter.hp));
     element(`${name}-guard`).style.width = `${fighter.guard}%`;
+    element(`${name}-guard`).setAttribute('aria-valuenow', String(Math.round(fighter.guard)));
+    element(`${name}-guard`).setAttribute('aria-valuetext', `${Math.round(fighter.guard)}%${fighter.guard < 30 ? ' · низкая защита' : ''}`);
     canvas.dataset[`${name}X`] = fighter.x.toFixed(1);
     canvas.dataset[`${name}Y`] = fighter.y.toFixed(1);
     canvas.dataset[`${name}Action`] = fighter.action?.kind ?? '';
     canvas.dataset[`${name}Reaction`] = fighter.reaction ?? '';
     canvas.dataset[`${name}Stop`] = fighter.stop.toFixed(3);
+    canvas.dataset[`${name}ActionTime`] = String(fighter.action?.time ?? 0);
+    canvas.dataset[`${name}Cel`] = fighter.action ? celAt(fighter.action.kind, fighter.action.time).cel.phase : '';
+    canvas.dataset[`${name}Guard`] = String(fighter.guard);
+    canvas.dataset[`${name}Dodge`] = String(fighter.dodge);
+    element(`${name}-guard`).parentElement!.classList.toggle('low-guard', fighter.guard < 30);
   }
   element('timer').textContent = String(Math.ceil(fight.remaining)).padStart(2, '0');
+  canvas.dataset.training = String(fight.training.enabled); canvas.dataset.frozen = String(training.frozen());
+  canvas.dataset.time = String(fight.time); canvas.dataset.aiIntent = fight.brain.intent; canvas.dataset.gap = String(fight.training.gap);
   canvas.dataset.combo = String(fight.combo);
   canvas.dataset.buffered = fight.buffered?.kind ?? '';
   canvas.dataset.phase = phase;
   canvas.dataset.loaded = renderer ? 'true' : 'false';
   const ended = phase === 'win' || phase === 'loss' || phase === 'draw';
+  training.refresh();
   overlay.hidden = phase === 'fighting' || phase === 'countdown';
   element('intro-card').hidden = phase !== 'menu';
   element('pause-card').hidden = phase !== 'paused';
@@ -120,6 +136,18 @@ async function load(): Promise<void> {
     start.disabled = false; start.textContent = 'ПОВТОРИТЬ ЗАГРУЗКУ';
   } finally { loading = false; update(); }
 }
+function tick(): void {
+  stepFight(fight, input(), 1 / 120);
+  renderer?.events(fight.events, fight);
+  for (const event of fight.events) audio.event(event);
+  renderer?.update(1 / 120);
+}
+const training = mountTraining(canvas, {
+  fight: () => fight, clear: clearInput, step: tick,
+  draw: () => { update(); renderer?.draw(fight, hitboxes.checked); },
+  reset: () => reset(fight.phase !== 'menu'),
+  replace: s => { fight = s; clearInput(); accumulator = 0; lastPhase = undefined; renderer?.clear(); update(); renderer?.draw(fight, hitboxes.checked); },
+});
 hitboxes.addEventListener('change', () => renderer?.draw(fight, hitboxes.checked));
 start.addEventListener('click', () => { if (!renderer) { void load(); return; } reset(); });
 element('resume').addEventListener('click', resume);
@@ -138,7 +166,7 @@ element('fullscreen').addEventListener('click', async () => {
 });
 document.addEventListener('keydown', event => {
   if (event.target instanceof HTMLElement && event.target.closest('input:not([type=checkbox]),select,textarea,[contenteditable=true]')) return;
-  if (event.code === 'Space' && event.target instanceof HTMLElement && event.target.closest('button,a,input')) return;
+  if (event.code === 'Space' && event.target instanceof HTMLElement && event.target.closest('button,a,input,summary')) return;
   if (event.code === 'Escape' || event.code === 'KeyP') {
     if (!event.repeat) { if (fight.phase === 'paused') resume(); else setPause(); } return;
   }
@@ -189,17 +217,15 @@ window.addEventListener('pagehide', setPause);
 document.addEventListener('visibilitychange', () => { if (document.hidden) setPause(); });
 function frame(now: number): void {
   const dt = lastFrame ? Math.min(.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
-  const active = fight.phase === 'fighting' || fight.phase === 'countdown';
+  const active = (fight.phase === 'fighting' || fight.phase === 'countdown') && !training.frozen();
   if (active) {
-    accumulator += dt;
+    accumulator += dt * training.speed();
     while (accumulator >= 1 / 120) {
-      stepFight(fight, input(), 1 / 120); accumulator -= 1 / 120;
-      renderer?.events(fight.events, fight);
-      for (const event of fight.events) audio.event(event);
-      renderer?.update(1 / 120);
+      tick(); accumulator -= 1 / 120;
       if (fight.phase !== 'fighting' && fight.phase !== 'countdown') { accumulator = 0; break; }
     }
   }
+  if (!active) accumulator = 0;
   if (active || lastDrawPhase !== fight.phase) {
     update(); renderer?.draw(fight, hitboxes.checked); lastDrawPhase = fight.phase;
   }
