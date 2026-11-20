@@ -101,7 +101,7 @@ test('camera settles on the puzzled face before speech; the judge line clears in
   await expect(page.locator('#caption-typed')).toHaveText('Я никому не хотел причинять зла.');
   await expect(page.locator('#art')).toHaveAttribute('src', /boxer-angry.webp$/);
   await page.locator('#scrub').fill('43911');
-  await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-after-v4.webp$/);
+  await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-after-v5.webp$/);
   await expect(page.locator('#subtitle')).toBeHidden();
   await page.locator('#scrub').fill('46831');
   await expect(page.locator('#caption-typed')).toHaveText('Но был вынужден.');
@@ -173,8 +173,8 @@ test('reveals keep the image and growing narration through the pullback', async 
   const reveals = [
     { start: 22842, early: 375, late: 1350, end: 1450, asset: 'intro-escape-v6.webp' },
     { start: 30670, early: 500, late: 2200, end: 2350, asset: 'intro-driver-v3.webp' },
-    { start: 35555, early: 450, late: 2100, end: 2350, asset: 'intro-woman-v3.webp' },
-    { start: 43282, early: 830, late: 2000, end: 2050, asset: 'intro-woman-after-v4.webp' },
+    { start: 35555, early: 450, late: 2100, end: 2350, asset: 'intro-woman-v4.webp' },
+    { start: 43282, early: 830, late: 2000, end: 2050, asset: 'intro-woman-after-v5.webp' },
     { start: 50611, early: 1235, late: 3800, end: 3900, asset: 'intro-billiards-v4.webp' },
   ];
   for (const reveal of reveals) {
@@ -199,7 +199,7 @@ test('reveals keep the image and growing narration through the pullback', async 
   await expect(page.locator('#art')).toHaveAttribute('src', /intro-biker-v3.webp$/);
   await expect(page.locator('#caption-typed')).toHaveText('Каждый встречный');
   await page.locator('#scrub').fill('35555');
-  await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-v3.webp$/);
+  await expect(page.locator('#art')).toHaveAttribute('src', /intro-woman-v4.webp$/);
   await expect(page.locator('#subtitle')).toBeHidden();
   expect(await page.locator('#art').evaluate((img) => img.style.transformOrigin)).toBe('50% 50%');
 });
@@ -213,8 +213,8 @@ test('revealed images and completed captions hold during playback before the nex
   await page.getByRole('button', { name: 'Выключить звук', exact: true }).click();
   const holds = [
     { at: 24392, end: 26292, text: 'Но я сбежал.', image: 'intro-escape-v6.webp', next: 'intro-road-v4.webp' },
-    { at: 37905, end: 39055, text: 'пытался мне помешать.', image: 'intro-woman-v3.webp', next: 'boxer-angry.webp' },
-    { at: 45467, end: 46832, text: 'Но был вынужден.', image: 'intro-woman-after-v4.webp', next: 'intro-controller-v3.webp' },
+    { at: 37905, end: 39055, text: 'пытался мне помешать.', image: 'intro-woman-v4.webp', next: 'boxer-angry.webp' },
+    { at: 45467, end: 46832, text: 'Но был вынужден.', image: 'intro-woman-after-v5.webp', next: 'intro-controller-v4.webp' },
     { at: 54911, end: 56811, text: 'я добрался до мерзавца, который меня подставил.', image: 'intro-billiards-v4.webp', next: 'intro-acquittal-v3.webp' },
   ];
   for (const hold of holds) {

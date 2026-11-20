@@ -62,7 +62,7 @@ test('a thought finishes before its pause and the court subtitle clears before i
   assert.equal(cueAt(intro, court.end), silence);
   const noHarm = named('no-harm');
   assert.match(visualAt(intro, noHarm.end - 1).image, /boxer-angry.webp$/);
-  assert.match(visualAt(intro, noHarm.end).image, /intro-woman-after-v4.webp$/);
+  assert.match(visualAt(intro, noHarm.end).image, /intro-woman-after-v5.webp$/);
   assert.ok(named('forced').speechDelay! >= 630);
 });
 
@@ -111,7 +111,7 @@ test('all original illustrations preload in the same narrative order', () => {
   assert.deepEqual(images.filter((image, index) => index === 0 || image !== images[index - 1]), [
     'intro-gym-v3.webp', 'intro-arrest.webp', 'intro-court-v2.webp', 'intro-cell-v3.webp',
     'intro-escape-v6.webp', 'intro-road-v4.webp', 'intro-driver-v3.webp', 'intro-biker-v3.webp',
-    'intro-woman-v3.webp', 'boxer-angry.webp', 'intro-woman-after-v4.webp', 'intro-controller-v3.webp',
+    'intro-woman-v4.webp', 'boxer-angry.webp', 'intro-woman-after-v5.webp', 'intro-controller-v4.webp',
     'intro-billiards-v4.webp', 'intro-acquittal-v3.webp', 'intro-gym-v4.webp',
   ]);
   for (const cue of intro.cues) for (const shot of cue.shots!) {
@@ -208,7 +208,7 @@ test('the biker clause settles before the woman clause starts its centered pullb
   assert.ok(biker.duration - biker.speech.duration >= 500);
   assert.match(visualAt(intro, biker.end - 1).image, /intro-biker-v3.webp$/);
   assert.equal(subtitleAt(biker.speech, biker.duration - 1), biker.text);
-  assert.match(visualAt(intro, woman.start).image, /intro-woman-v3.webp$/);
+  assert.match(visualAt(intro, woman.start).image, /intro-woman-v4.webp$/);
   assert.equal(subtitleAt(woman.speech, 249), '');
   assert.deepEqual(visualAt(intro, woman.start).camera, { scale: 2, x: 50, y: 50 });
   const moving = visualAt(intro, woman.start + 1200).camera;
