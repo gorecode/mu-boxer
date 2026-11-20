@@ -1,0 +1,188 @@
+import './style.css';
+import { createFight, idleInput, pauseFight, resumeFight, startFight, stepFight, type Input, type Phase } from './model.ts';
+import { FightAudio, FightRenderer, loadAssets } from './render.ts';
+
+function element<T extends HTMLElement = HTMLElement>(id: string): T {
+  const result = document.getElementById(id);
+  if (!result) throw new Error(`Missing fight element: ${id}`);
+  return result as T;
+}
+const canvas = element<HTMLCanvasElement>('arena');
+const start = element<HTMLButtonElement>('start');
+const pause = element<HTMLButtonElement>('pause');
+const difficulty = element<HTMLSelectElement>('difficulty');
+const overlay = element('overlay');
+const audio = new FightAudio();
+let fight = createFight();
+let renderer: FightRenderer | undefined;
+let lastPhase: Phase | undefined;
+let accumulator = 0;
+let lastFrame = 0;
+let loading = false;
+let pendingJump = false;
+let lastDrawPhase: Phase | undefined;
+const keys = new Map<string, keyof Input>();
+const pointers = new Map<number, keyof Input>();
+const bindings: Record<string, keyof Input> = {
+  KeyA: 'left', ArrowLeft: 'left', KeyD: 'right', ArrowRight: 'right', KeyS: 'down', ArrowDown: 'down',
+  KeyW: 'jump', ArrowUp: 'jump', Space: 'jump', KeyJ: 'light', KeyK: 'heavy', KeyL: 'block',
+};
+function clearInput(): void {
+  keys.clear(); pointers.clear(); pendingJump = false;
+  document.querySelectorAll('.touch-controls .active').forEach(button => button.classList.remove('active'));
+}
+function input(): Input {
+  const current = idleInput();
+  for (const key of [...keys.values(), ...pointers.values()]) current[key] = true;
+  current.jump = pendingJump; pendingJump = false;
+  return current;
+}
+function reset(play = true): void {
+  const chosen = difficulty.value === 'warmup' ? 'warmup' : 'street';
+  fight = createFight(chosen); renderer?.clear(); clearInput(); accumulator = 0; lastPhase = undefined; lastDrawPhase = undefined;
+  if (play) { startFight(fight); audio.resume(); canvas.focus({ preventScroll: true }); }
+  update();
+}
+function setPause(): void { pauseFight(fight); clearInput(); audio.stop(); accumulator = 0; update(); }
+function resume(): void { resumeFight(fight); clearInput(); audio.resume(); accumulator = 0; canvas.focus({ preventScroll: true }); update(); }
+function result(): void {
+  const won = fight.phase === 'win', draw = fight.phase === 'draw';
+  element('result-label').textContent = fight.remaining <= 0 ? 'ВРЕМЯ ВЫШЛО' : won ? 'ПУТЬ СВОБОДЕН' : 'БОЙ ОКОНЧЕН';
+  element('result-title').textContent = won ? 'ВОПРОС РЕШЁН.' : draw ? 'ОБА ПРИ СВОЁМ.' : 'НЕ ТОТ АРГУМЕНТ.';
+  element('result-copy').textContent = won ? 'Рабочий больше не возражал.' : draw ? 'Придётся обсудить ещё раз.' : 'У лопаты оказались свои доводы. Попробуй блок и контратаку.';
+  element('result-stats').replaceChildren(...[
+    [String(fight.hits), 'ПОПАДАНИЙ'], [String(fight.blocked), 'БЛОКОВ'], [`${Math.ceil(90 - fight.remaining)}с`, 'ВРЕМЯ БОЯ'],
+  ].map(([value, label]) => { const div = document.createElement('div'); const b = document.createElement('b'); b.textContent = value; div.append(b, label); return div; }));
+  element('next-scene').hidden = !won;
+}
+function update(): void {
+  const phase = fight.phase;
+  for (const [name, fighter] of [['player', fight.player], ['worker', fight.worker]] as const) {
+    element(`${name}-hp`).textContent = `${fighter.hp} / ${fighter.maxHp}`;
+    element(`${name}-health`).style.width = `${fighter.hp / fighter.maxHp * 100}%`;
+    element(`${name}-health`).setAttribute('aria-valuenow', String(fighter.hp));
+    element(`${name}-guard`).style.width = `${fighter.guard}%`;
+    canvas.dataset[`${name}X`] = fighter.x.toFixed(1);
+    canvas.dataset[`${name}Y`] = fighter.y.toFixed(1);
+    canvas.dataset[`${name}Action`] = fighter.action?.kind ?? '';
+  }
+  element('timer').textContent = String(Math.ceil(fight.remaining)).padStart(2, '0');
+  canvas.dataset.phase = phase;
+  canvas.dataset.loaded = renderer ? 'true' : 'false';
+  const ended = phase === 'win' || phase === 'loss' || phase === 'draw';
+  overlay.hidden = phase === 'fighting' || phase === 'countdown';
+  element('intro-card').hidden = phase !== 'menu';
+  element('pause-card').hidden = phase !== 'paused';
+  element('result-card').hidden = !ended;
+  pause.disabled = !['fighting', 'countdown', 'paused'].includes(phase);
+  pause.firstChild!.textContent = phase === 'paused' ? 'ПРОДОЛЖИТЬ ' : 'ПАУЗА ';
+  let callout = '';
+  if (phase === 'countdown') callout = fight.countdown > .55 ? 'БОКСЁР ПРОТИВ РАБОЧЕГО' : 'БОЙ!';
+  else if (phase === 'fighting' && fight.combo > 1 && fight.comboTime > 0) callout = `${fight.combo} УДАРА ПОДРЯД`;
+  element('callout').textContent = callout;
+  const attack = fight.worker.action;
+  let hint = 'СОКРАТИ ДИСТАНЦИЮ. УДАРЬ ПОСЛЕ ПРОМАХА.';
+  if (attack && attack.time < .75) hint = attack.kind === 'sweep' ? 'ЛОПАТА НИЗКО — ПРЫГАЙ ИЛИ БЛОКИРУЙ СИДЯ' : attack.kind === 'overhead' ? 'УДАР СВЕРХУ — БЛОК СТОЯ ИЛИ ОТСТУПИ' : 'ТЫЧОК — ПРИСЯДЬ ИЛИ ПОСТАВЬ БЛОК';
+  element('fight-hint').textContent = hint;
+  if (lastPhase !== phase) {
+    const labels: Record<Phase, string> = { menu: 'Двор у участкового', countdown: 'Боксёр против Рабочего', fighting: 'Бой идёт', paused: 'Пауза', win: 'Победа Боксёра', loss: 'Победа Рабочего', draw: 'Ничья' };
+    element('state-label').textContent = labels[phase];
+    if (ended) { result(); clearInput(); element('restart').focus({ preventScroll: true }); }
+    if (phase === 'paused') element('resume').focus({ preventScroll: true });
+    lastPhase = phase;
+  }
+}
+async function load(): Promise<void> {
+  if (loading) return;
+  loading = true; start.disabled = true; start.textContent = 'ЗАГРУЗКА РИСУНКОВ…';
+  element('load-status').textContent = 'Готовим двор и бойцов.';
+  try {
+    const assets = await loadAssets();
+    renderer = new FightRenderer(canvas, assets, matchMedia('(prefers-reduced-motion: reduce)').matches);
+    renderer.draw(fight); start.disabled = false; start.textContent = 'НАЧАТЬ БОЙ →';
+    element('load-status').textContent = 'Клавиатура или кнопки под ареной.';
+  } catch (error) {
+    element('load-status').textContent = error instanceof Error ? error.message : 'Не удалось подготовить бой.';
+    start.disabled = false; start.textContent = 'ПОВТОРИТЬ ЗАГРУЗКУ';
+  } finally { loading = false; update(); }
+}
+start.addEventListener('click', () => { if (!renderer) { void load(); return; } reset(); });
+element('resume').addEventListener('click', resume);
+pause.addEventListener('click', () => { if (fight.phase === 'paused') resume(); else setPause(); });
+for (const id of ['restart', 'pause-restart']) element(id).addEventListener('click', () => reset());
+element('sound').addEventListener('click', async () => {
+  try {
+    const enabled = await audio.toggle(); element('sound').textContent = enabled ? 'ЗВУК ВКЛ' : 'ЗВУК ВЫКЛ';
+    element('sound').setAttribute('aria-pressed', String(enabled));
+    if (fight.phase === 'paused' || fight.phase === 'menu') audio.stop();
+  } catch { element('sound').textContent = 'ЗВУК НЕДОСТУПЕН'; }
+});
+element('fullscreen').addEventListener('click', async () => {
+  try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.querySelector('.arena-shell')!.requestFullscreen(); }
+  catch { element('state-label').textContent = 'Полный экран недоступен в этом браузере.'; }
+});
+document.addEventListener('keydown', event => {
+  if (event.target instanceof HTMLElement && event.target.closest('input,select,textarea,[contenteditable=true]')) return;
+  if (event.code === 'Space' && event.target instanceof HTMLElement && event.target.closest('button,a')) return;
+  if (event.code === 'Escape' || event.code === 'KeyP') {
+    if (!event.repeat) { if (fight.phase === 'paused') resume(); else setPause(); } return;
+  }
+  if (event.code === 'KeyR' && !event.repeat && renderer && fight.phase !== 'menu') { reset(); return; }
+  const action = bindings[event.code];
+  if (!action || !['countdown', 'fighting'].includes(fight.phase)) return;
+  event.preventDefault();
+  if (action === 'jump' && !event.repeat && ![...keys.values()].includes('jump')) pendingJump = true;
+  keys.set(event.code, action);
+});
+document.addEventListener('keyup', event => {
+  keys.delete(event.code);
+});
+for (const button of document.querySelectorAll<HTMLButtonElement>('[data-input]')) {
+  const action = button.dataset.input as keyof Input;
+  const key = `button:${action}`;
+  button.addEventListener('keydown', event => {
+    if (!['Space', 'Enter'].includes(event.code) || !['fighting', 'countdown'].includes(fight.phase)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (action === 'jump' && !event.repeat) pendingJump = true;
+    keys.set(key, action); button.classList.add('active');
+  });
+  button.addEventListener('keyup', event => {
+    if (!['Space', 'Enter'].includes(event.code)) return;
+    event.preventDefault(); keys.delete(key); button.classList.remove('active');
+  });
+  button.addEventListener('blur', () => { keys.delete(key); button.classList.remove('active'); });
+  button.addEventListener('pointerdown', event => {
+    if (fight.phase !== 'fighting' && fight.phase !== 'countdown') return;
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId); pointers.set(event.pointerId, action);
+    if (action === 'jump') pendingJump = true;
+    button.classList.add('active');
+  });
+  const release = (event: PointerEvent) => {
+    pointers.delete(event.pointerId);
+    button.classList.toggle('active', [...pointers.values()].includes(button.dataset.input as keyof Input));
+  };
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture'] as const) button.addEventListener(name, release);
+}
+window.addEventListener('blur', setPause);
+window.addEventListener('pagehide', setPause);
+document.addEventListener('visibilitychange', () => { if (document.hidden) setPause(); });
+function frame(now: number): void {
+  const dt = lastFrame ? Math.min(.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
+  const active = fight.phase === 'fighting' || fight.phase === 'countdown';
+  if (active) {
+    accumulator += dt;
+    while (accumulator >= 1 / 120) {
+      stepFight(fight, input(), 1 / 120); accumulator -= 1 / 120;
+      renderer?.events(fight.events, fight);
+      for (const event of fight.events) audio.event(event);
+      renderer?.update(1 / 120);
+      if (fight.phase !== 'fighting' && fight.phase !== 'countdown') { accumulator = 0; break; }
+    }
+  }
+  if (active || lastDrawPhase !== fight.phase) {
+    update(); renderer?.draw(fight); lastDrawPhase = fight.phase;
+  }
+  requestAnimationFrame(frame);
+}
+void load(); requestAnimationFrame(frame);

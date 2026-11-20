@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="theme-color" content="#141115"><meta name="description" content="Месть Боксёра 2 — играбельный бой с Рабочим."><title>Боксёр против Рабочего · Месть Боксёра II</title></head>
+<body>
+<main class="fight-page">
+  <header class="masthead"><a href="./index.html" class="wordmark">МЕСТЬ БОКСЁРА <span>II</span></a><span class="chapter">ГЛАВА 01 <i></i> А ВОТ ЖЕ ЛЕНТА</span><span class="prototype">ИГРАБЕЛЬНЫЙ ЭТЮД</span></header>
+  <section class="arena-shell" aria-label="Арена боя">
+    <canvas id="arena" width="1600" height="900" tabindex="0" aria-label="Бой с Рабочим. Управление описано под ареной."></canvas>
+    <div class="hud" aria-label="Состояние боя">
+      <div class="fighter-hud player-hud"><div class="name-row"><strong>БОКСЁР</strong><span id="player-hp">100 / 100</span></div><div class="health-track"><div id="player-health" role="progressbar" aria-label="Здоровье Боксёра" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100"></div></div><div class="guard-track"><div id="player-guard"></div></div></div>
+      <div class="round-clock"><span id="timer">90</span><small>ОДИН БОЙ</small></div>
+      <div class="fighter-hud worker-hud"><div class="name-row"><strong>РАБОЧИЙ</strong><span id="worker-hp">120 / 120</span></div><div class="health-track"><div id="worker-health" role="progressbar" aria-label="Здоровье Рабочего" aria-valuemin="0" aria-valuemax="120" aria-valuenow="120"></div></div><div class="guard-track"><div id="worker-guard"></div></div></div>
+    </div>
+    <div id="callout" aria-hidden="true"></div>
+    <div id="overlay" class="overlay">
+      <div class="intro-card" id="intro-card"><span class="eyebrow">ДВОР У УЧАСТКОВОГО</span><h1>ПРИДЁТСЯ<br><em>ПОДВИНУТЬСЯ.</em></h1><p id="intro-copy">Дверь рядом. Путь закрыт.<br>У каждого свои аргументы.</p><div class="selection"><label for="difficulty">Сложность</label><select id="difficulty"><option value="street">Улица</option><option value="warmup">Разминка</option></select></div><button id="start" class="primary" disabled>ЗАГРУЗКА РИСУНКОВ…</button><p class="load-note" id="load-status" role="status">Готовим двор и бойцов.</p></div>
+      <div id="pause-card" class="pause-card" hidden><span class="eyebrow">ПЕРЕДЫШКА</span><h2>НЕ РАСХОДИТЬСЯ.</h2><p>Бой на паузе.</p><button id="resume" class="primary">ПРОДОЛЖИТЬ</button><button id="pause-restart" class="text-button">Начать заново</button></div>
+      <div id="result-card" class="result-card" hidden><span class="eyebrow" id="result-label">БОЙ ОКОНЧЕН</span><h2 id="result-title"></h2><p id="result-copy"></p><div class="result-stats" id="result-stats"></div><button id="restart" class="primary">ЕЩЁ РАЗ</button><a href="./index.html#scene=precinct&t=0" id="next-scene">Дальше — к участковому ↗</a></div>
+    </div>
+    <div class="arena-caption"><span>МОСКВА. ДО ТУРНИРА — ОДИН ДЕНЬ.</span><span id="fight-hint">СОБЛЮДАЙТЕ ДИСТАНЦИЮ</span></div>
+  </section>
+  <div class="toolbar"><div class="live-state"><span class="live-dot"></span><span id="state-label" role="status" aria-live="polite">Двор у участкового</span></div><div class="toolbar-actions"><button id="sound" aria-pressed="false">ЗВУК ВЫКЛ</button><button id="pause" disabled>ПАУЗА <kbd>ESC</kbd></button><button id="fullscreen">НА ВЕСЬ ЭКРАН ↗</button></div></div>
+  <section class="touch-controls" aria-label="Сенсорное управление"><div class="direction-controls"><button data-input="left" aria-label="Идти влево">←</button><button data-input="down" aria-label="Присесть">↓</button><button data-input="right" aria-label="Идти вправо">→</button><button data-input="jump" aria-label="Прыжок">↑</button></div><div class="attack-controls"><button data-input="block">БЛОК</button><button data-input="light">УДАР</button><button data-input="heavy">СИЛЬНЫЙ</button></div></section>
+  <section class="instructions" aria-label="Как играть"><div class="control-group"><span class="control-title">ДВИЖЕНИЕ</span><p><kbd>A</kbd><kbd>D</kbd> шаг <span class="divider">/</span> <kbd>W</kbd> прыжок <span class="divider">/</span> <kbd>S</kbd> присесть</p><small>Стрелки тоже работают</small></div><div class="control-group"><span class="control-title">АРГУМЕНТЫ</span><p><kbd>J</kbd> быстрый <span class="divider">/</span> <kbd>K</kbd> сильный <span class="divider">/</span> <kbd>L</kbd> блок</p><small>↓ + J — по ногам · ↓ + K — апперкот</small></div><div class="tactics"><span class="control-title">У ЛОПАТЫ ДЛИННЕЕ РУКИ</span><p>Присядь под тычком. Перепрыгни подсечку.<br>После широкого замаха — твой выход.</p></div></section>
+  <footer><span>СЕГОДНЯ СВОЙ ТУРНИР Я ВЫИГРАЮ.</span><span>РИСОВАННЫЙ БОЙ / 01</span></footer>
+</main>
+<script type="module" src="/src/fight/main.ts"></script>
+</body>
+</html>
