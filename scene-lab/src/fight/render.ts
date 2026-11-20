@@ -1,6 +1,6 @@
 import { celAt } from './moves.ts';
 import { fighterGeometry } from './geometry.ts';
-import { moves, type Fight, type Fighter, type FightEvent } from './model.ts';
+import { endingTiming, moves, type Fight, type Fighter, type FightEvent } from './model.ts';
 
 type Frame = { width: number; height: number; anchorX: number; anchorY: number; scale: number };
 interface Assets { arena: HTMLImageElement; boxer: HTMLImageElement[]; worker: HTMLImageElement[]; manifest: { boxer: Frame[]; worker: Frame[] } }
@@ -52,7 +52,7 @@ export class FightRenderer {
       const x = event.x;
       if (event.type === 'land' || event.type === 'jump') y = 817;
       else if (!event.attack) y = 820 - f.y - 350;
-      const impact = event.type === 'hit' || event.type === 'break';
+      const impact = event.type === 'hit' || event.type === 'break' || event.type === 'land' && f.hp === 0;
       if (impact) { this.shake = event.power >= 17 ? 10 : 5; this.flash = .07; }
       const color = event.type === 'block' ? '#c2c4e0' : event.type === 'land' || event.type === 'jump' ? '#ab8b82' : '#ffcd95';
       if (['hit', 'block', 'break', 'land', 'jump'].includes(event.type)) {
@@ -90,18 +90,34 @@ export class FightRenderer {
     if (Math.abs(f.velocity) > 1) return Math.floor(f.travel / 67) % 2 ? 1 : 10;
     return 0;
   }
-  private fighter(f: Fighter, worker: boolean, time: number): void {
+  private defeated(f: Fighter, worker: boolean, ending: Fight['ending']): void {
+    const c = this.ctx, key = worker ? 'worker' : 'boxer';
+    const progress = ending?.stage === 'fall' ? Math.min(1, ending.elapsed / endingTiming.fall) : 1;
+    const x = f.x + (Math.max(350, Math.min(1250, f.x)) - f.x) * progress;
+    const blend = f.y === 0 ? 1 : this.reducedMotion ? 0 : Math.max(0, Math.min(1, (70 - f.y) / 70)) * Math.max(0, Math.min(1, -f.vy / 450));
+    const tilt = this.reducedMotion ? 0 : Math.min(1, progress * 1.3) * 1.05 * (worker ? 1 : -1);
+    for (const [index, alpha, angle] of [[6, 1 - blend, tilt], [11, blend, 0]]) {
+      if (alpha <= 0) continue;
+      const frame = this.assets.manifest[key][index];
+      c.save(); c.translate(x, 820 - f.y); c.scale(worker ? -f.facing : f.facing, 1);
+      c.translate(0, -220); c.rotate(angle); c.translate(0, 220);
+      c.scale(frame.scale, frame.scale); c.globalAlpha = alpha;
+      if (f.hurt > .2) c.filter = 'brightness(1.45) sepia(.22)';
+      c.drawImage(this.assets[key][index], -frame.anchorX, -frame.anchorY, frame.width, frame.height); c.restore();
+    }
+  }
+  private fighter(f: Fighter, worker: boolean, time: number, ending: Fight['ending']): void {
+    if (f.hp === 0) { this.defeated(f, worker, ending); return; }
     const c = this.ctx, key = worker ? 'worker' : 'boxer', index = this.pose(f, worker);
     const frame = this.assets.manifest[key][index], image = this.assets[key][index];
     const facing = worker ? -f.facing : f.facing;
-    const dead = f.hp === 0;
     const idle = !f.action && !f.reaction && f.stun <= 0 && f.y === 0 && !f.crouch;
     const breath = this.reducedMotion ? 0 : idle ? Math.sin(time * 3.7 + (worker ? 2 : 0)) * 2 : 0;
     c.save();
     const ground = 820;
-    c.translate(dead ? Math.max(310, Math.min(1290, f.x)) : f.x, ground - f.y);
+    c.translate(f.x, ground - f.y);
     c.scale(facing, 1);
-    if (!this.reducedMotion && !dead) {
+    if (!this.reducedMotion) {
       let offset = 0, tilt = 0;
       if (f.action) {
         const m = moves[f.action.kind], t = f.action.time;
@@ -116,7 +132,6 @@ export class FightRenderer {
       c.translate(offset * mirror, -220); c.rotate(tilt * mirror); c.translate(0, 220);
     }
     c.scale(frame.scale, frame.scale);
-    c.globalAlpha = dead ? .82 : 1;
     if (f.hurt > .2) c.filter = 'brightness(1.45) sepia(.22)';
     c.drawImage(image, -frame.anchorX, -frame.anchorY + breath, frame.width, frame.height);
     c.restore();
@@ -162,7 +177,7 @@ export class FightRenderer {
       shadow.addColorStop(0, '#160e22b8'); shadow.addColorStop(1, '#160e2200');
       c.fillStyle = shadow; c.globalAlpha = Math.max(.3, 1 - f.y / 300); c.beginPath(); c.arc(0, 0, 145, 0, Math.PI * 2); c.fill(); c.restore();
     }
-    this.fighter(s.worker, true, s.time); this.fighter(s.player, false, s.time);
+    this.fighter(s.worker, true, s.time, s.ending); this.fighter(s.player, false, s.time, s.ending);
     const glow = c.createRadialGradient(1295, 145, 10, 1295, 145, 160);
     glow.addColorStop(0, '#ffbc6c15'); glow.addColorStop(1, '#ffbc6c00');
     c.fillStyle = glow; c.fillRect(1120, 0, 350, 330);

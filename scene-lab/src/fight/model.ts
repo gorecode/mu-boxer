@@ -2,7 +2,10 @@ import { fighterGeometry, overlaps } from './geometry.ts';
 
 import { moves, type Attack, type Move } from './moves.ts';
 export { moves, type Attack, type Move } from './moves.ts';
-export type Phase = 'menu' | 'countdown' | 'fighting' | 'paused' | 'win' | 'loss' | 'draw';
+export type Outcome = 'win' | 'loss' | 'draw';
+export type Phase = 'menu' | 'countdown' | 'fighting' | 'ending' | 'paused' | Outcome;
+export const endingTiming = { fall: .7, ko: 1.1, fade: .55 } as const;
+export interface Ending { result: Outcome; reason: 'ko' | 'time'; stage: 'fall' | 'ko' | 'fade'; elapsed: number }
 export type Difficulty = 'warmup' | 'street';
 export interface Input { left: boolean; right: boolean; down: boolean; block: boolean; jump: boolean; light: boolean; heavy: boolean; dodge?: boolean; attackPressed?: 'jab' | 'heavy' | 'low' | 'upper' }
 export const idleInput = (): Input => ({ left: false, right: false, down: false, block: false, jump: false, light: false, heavy: false });
@@ -14,7 +17,7 @@ export interface Fighter {
 }
 export interface FightEvent { type: 'hit' | 'block' | 'break' | 'miss' | 'jump' | 'land' | 'start' | 'finish'; target: 'player' | 'worker'; x: number; y: number; power: number; attack?: Attack; direction?: number }
 export interface Fight {
-  phase: Phase; resume: 'countdown' | 'fighting'; difficulty: Difficulty;
+  phase: Phase; resume: 'countdown' | 'fighting' | 'ending'; difficulty: Difficulty; ending: Ending | null;
   player: Fighter; worker: Fighter; time: number; remaining: number; countdown: number;
   hitstop: number; aiWait: number; aiTurn: number; combo: number; comboTime: number;
   hits: number; blocked: number; events: FightEvent[];
@@ -27,12 +30,12 @@ function fighter(x: number, hp: number, facing: 1 | -1): Fighter {
     guardDelay: 0, dodge: 0, dodgeCooldown: 0, dodgeDirection: 0, stun: 0, invulnerable: 0, action: null, travel: 0, hurt: 0, stop: 0, knockback: 0, reaction: null };
 }
 export function createFight(difficulty: Difficulty = 'street', training = false): Fight {
-  return { phase: 'menu', resume: 'countdown', difficulty, player: fighter(430, 100, 1), worker: fighter(1170, 120, -1),
+  return { phase: 'menu', resume: 'countdown', difficulty, ending: null, player: fighter(430, 100, 1), worker: fighter(1170, 120, -1),
     time: 0, remaining: 90, countdown: 1.6, hitstop: 0, aiWait: .65, aiTurn: 0, combo: 0, comboTime: 0, hits: 0, blocked: 0, events: [], training: { enabled: training, dummy: 'idle', firstHit: false, gap: false }, brain: { timer: difficulty === 'warmup' ? .32 : .18, decisions: 0, intent: 'approach', low: false, observedAttack: null, observedDistance: 740, recovering: false }, held: idleInput(), buffered: null, comboActive: false };
 }
 export function startFight(fight: Fight): void { if (fight.phase === 'menu') fight.phase = 'countdown'; }
 export function pauseFight(fight: Fight): void {
-  if (fight.phase === 'fighting' || fight.phase === 'countdown') {
+  if (fight.phase === 'fighting' || fight.phase === 'countdown' || fight.phase === 'ending') {
     fight.resume = fight.phase; fight.phase = 'paused'; fight.buffered = null; fight.held = idleInput();
     for (const f of [fight.player, fight.worker]) { f.blocking = false; f.velocity = 0; }
   }
@@ -224,15 +227,43 @@ function finish(s: Fight): void {
   const p = s.player, w = s.worker;
   if (s.training.enabled || p.hp > 0 && w.hp > 0 && s.remaining > 0) return;
   const delta = p.hp / p.maxHp - w.hp / w.maxHp;
-  s.phase = delta > 0 ? 'win' : delta < 0 ? 'loss' : 'draw';
-  for (const f of [p, w]) { f.action = null; f.blocking = false; f.velocity = 0; f.y = 0; f.vy = 0; f.crouch = false; f.stop = 0; f.knockback = 0; f.reaction = null; f.dodge = 0; }
-  s.buffered = null; s.held = idleInput(); s.hitstop = 0;
-  emit(s, 'finish', s.phase === 'win' ? 'worker' : 'player');
+  s.ending = { result: delta > 0 ? 'win' : delta < 0 ? 'loss' : 'draw', reason: p.hp === 0 || w.hp === 0 ? 'ko' : 'time', stage: 'fall', elapsed: 0 };
+  s.phase = 'ending';
+  for (const f of [p, w]) {
+    f.blocking = false; f.velocity = 0; f.crouch = false; f.dodge = 0;
+    if (f.hp === 0) { f.action = null; f.y = Math.max(.1, f.y); f.vy = Math.max(420, f.vy); f.reaction = 'down'; }
+  }
+  s.buffered = null; s.held = idleInput();
+}
+function stepEnding(s: Fight, dt: number): void {
+  const ending = s.ending!;
+  const stopped = s.player.stop > 0 || s.worker.stop > 0;
+  for (const [name, f] of [['player', s.player], ['worker', s.worker]] as const) {
+    body(f, dt, s, name);
+    if (f.hp === 0) f.reaction = 'down';
+  }
+  s.hitstop = Math.max(s.player.stop, s.worker.stop);
+  if (stopped) return;
+  ending.elapsed += dt;
+  if (ending.stage === 'fall') {
+    if (ending.elapsed < endingTiming.fall - 1e-9 || s.player.y > 0 || s.worker.y > 0) return;
+    ending.stage = 'ko'; ending.elapsed = 0;
+    emit(s, 'finish', ending.result === 'win' ? 'worker' : 'player');
+  } else if (ending.stage === 'ko' && ending.elapsed >= endingTiming.ko - 1e-9) {
+    ending.stage = 'fade'; ending.elapsed = 0;
+  } else if (ending.stage === 'fade' && ending.elapsed >= endingTiming.fade - 1e-9) {
+    ending.elapsed = endingTiming.fade; s.phase = ending.result;
+    for (const f of [s.player, s.worker]) {
+      f.action = null; f.velocity = 0; f.stop = 0; f.knockback = 0; f.reaction = f.hp === 0 ? 'down' : null;
+    }
+    s.hitstop = 0;
+  }
 }
 export function stepFight(s: Fight, input: Input, dt: number): void {
   if (!Number.isFinite(dt) || dt < 0 || dt > .05) throw new RangeError('Fight step must be between 0 and 50 ms');
   s.events = [];
   if (!dt || s.phase === 'menu' || s.phase === 'paused' || s.phase === 'win' || s.phase === 'loss' || s.phase === 'draw') return;
+  if (s.phase === 'ending') { stepEnding(s, dt); return; }
   if (s.phase === 'countdown') {
     s.countdown = Math.max(0, s.countdown - dt);
     if (!s.countdown) { s.phase = 'fighting'; emit(s, 'start', 'player'); }
