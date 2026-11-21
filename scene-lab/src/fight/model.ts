@@ -95,9 +95,9 @@ function readInput(s: Fight, input: Input, dt: number): void {
 }
 function control(s: Fight, input: Input, dt: number): void {
   const p = s.player;
-  p.crouch = input.down && p.y === 0 && p.stun <= 0 && !p.reaction;
-  p.blocking = input.block && p.y === 0 && !p.action && p.stun <= 0 && !p.reaction;
-  if (p.stun > 0 || p.reaction) { p.blocking = false; p.crouch = false; return; }
+  if (p.stun > 0 || p.reaction) { p.blocking = false; if (p.reaction !== 'guard') p.crouch = false; return; }
+  p.crouch = input.down && p.y === 0;
+  p.blocking = input.block && p.y === 0 && !p.action;
   if (p.dodge > 0) { p.blocking = false; p.crouch = false; move(p, p.dodgeDirection * 500, dt); return; }
   const requested = s.buffered?.kind;
   if (requested && !p.blocking) {
@@ -118,15 +118,19 @@ function control(s: Fight, input: Input, dt: number): void {
       if (!a || cancel) {
         const chain = cancel && a ? (a.chain ?? 0) + 1 : 0;
         const lunge = cancel && p.y === 0 && s.worker.y === 0 && (s.worker.x - p.x) * p.facing > 0
-          ? clamp(Math.abs(s.worker.x - p.x) + Math.abs(s.worker.knockback) / 12 - moves[requested].range + 20, 24, 120) : 0;
+          ? clamp(Math.abs(s.worker.x - p.x) + Math.abs(s.worker.knockback) / 12 - moves[requested].range + 20, 24, 120)
+          : requested === 'upper' && p.y === 0 && (s.worker.x - p.x) * p.facing > 0
+            ? clamp(Math.abs(s.worker.x - p.x) - moves.upper.range + 20, 0, 70) : 0;
         p.action = { kind: requested, time: 0, connected: false, chain, lunge };
         p.blocking = false; p.velocity = 0; s.buffered = null;
       }
     }
   }
   const direction = Number(input.right) - Number(input.left);
-  const follow = p.action && (p.action.chain ?? 0) > 0 && p.action.time < .08;
-  move(p, follow ? p.facing * (p.action!.lunge ?? 24) / .08 : p.action || p.blocking || p.crouch ? 0 : direction * (p.y > 0 ? 245 : 355), dt);
+  const stepTime = (p.action?.chain ?? 0) > 0 ? .08 : .12;
+  const follow = p.action && (p.action.lunge ?? 0) > 0 && p.action.time < stepTime;
+  move(p, follow ? p.facing * p.action!.lunge! / stepTime : p.action || p.blocking || p.crouch ? 0 : direction * (p.y > 0 ? 245 : 355),
+    follow ? Math.min(dt, stepTime - p.action!.time) : dt);
 }
 function ai(s: Fight, dt: number): void {
   const w = s.worker, p = s.player, brain = s.brain;
