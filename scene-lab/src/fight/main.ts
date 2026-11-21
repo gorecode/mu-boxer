@@ -89,9 +89,24 @@ function update(): void {
     canvas.dataset[`${name}ActionTime`] = String(fighter.action?.time ?? 0);
     canvas.dataset[`${name}Cel`] = fighter.action ? celAt(fighter.action.kind, fighter.action.time).cel.phase : '';
     canvas.dataset[`${name}Guard`] = String(fighter.guard);
+    element(`${name}-guard-value`).textContent = `${Math.round(fighter.guard)}%`;
     canvas.dataset[`${name}Dodge`] = String(fighter.dodge);
     element(`${name}-guard`).parentElement!.classList.toggle('low-guard', fighter.guard < 30);
   }
+  const p = fight.player, guardStatus = element('guard-state');
+  let guardState = 'idle', guardText = 'L — УДЕРЖИВАЙ БЛОК';
+  if (phase !== 'fighting') { guardState = 'inactive'; guardText = phase === 'paused' ? 'БЛОК НА ПАУЗЕ' : 'L — БЛОК · S + L — НИЗКИЙ'; }
+  else if (p.guard === 0 && p.stun > 0) { guardState = 'broken'; guardText = 'ЗАЩИТА СЛОМАНА'; }
+  else if (p.reaction === 'guard') { guardState = 'impact'; guardText = p.crouch ? 'НИЗКИЙ БЛОК · УДАР ПРИНЯТ' : 'БЛОК СТОЯ · УДАР ПРИНЯТ'; }
+  else if (p.blocking) { guardState = p.crouch ? 'low' : 'high'; guardText = p.crouch ? 'НИЗКИЙ БЛОК · ОТ ПОДСЕЧКИ' : 'БЛОК СТОЯ · ОТ УДАРА СВЕРХУ'; }
+  else if (fight.held.block) {
+    guardState = 'unavailable';
+    guardText = p.action ? 'БЛОК ПОСЛЕ ЗАВЕРШЕНИЯ УДАРА' : p.y > 0 ? 'В ВОЗДУХЕ БЛОК НЕДОСТУПЕН'
+      : p.dodge > 0 ? 'БЛОК ПОСЛЕ ОТСКОКА' : 'ОГЛУШЕНИЕ · БЛОК НЕДОСТУПЕН';
+  }
+  guardStatus.dataset.state = guardState;
+  if (guardStatus.textContent !== guardText) guardStatus.textContent = guardText;
+  canvas.dataset.playerBlock = guardState;
   element('timer').textContent = String(Math.ceil(fight.remaining)).padStart(2, '0');
   canvas.dataset.training = String(fight.training.enabled); canvas.dataset.frozen = String(training.frozen());
   canvas.dataset.time = String(fight.time); canvas.dataset.aiIntent = fight.brain.intent; canvas.dataset.gap = String(fight.training.gap);

@@ -3,7 +3,8 @@ import type { Fighter } from './model.ts';
 export type { Box } from './moves.ts';
 export interface Geometry { hurt: Box[]; hit: Box[] }
 export function overlaps(a: Box, b: Box): boolean {
-  return a.left <= b.right && a.right >= b.left && a.bottom <= b.top && a.top >= b.bottom;
+  const epsilon = 1e-9;
+  return a.left <= b.right + epsilon && a.right + epsilon >= b.left && a.bottom <= b.top + epsilon && a.top + epsilon >= b.bottom;
 }
 export function fighterGeometry(f: Fighter): Geometry {
   const cel = f.action ? celAt(f.action.kind, f.action.time).cel : null;

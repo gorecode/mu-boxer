@@ -147,6 +147,14 @@ export class FightRenderer {
       }
     }
   }
+  private guard(f: Fighter): void {
+    if (!f.blocking && f.reaction !== 'guard') return;
+    const c = this.ctx, height = f.crouch ? 150 : 365;
+    c.save(); c.translate(f.x, 820 - f.y); c.scale(f.facing, 1);
+    c.strokeStyle = '#9df1ff'; c.fillStyle = '#52b7dc24'; c.lineWidth = 5;
+    c.beginPath(); c.ellipse(70, -height, 65, f.crouch ? 75 : 110, 0, -Math.PI / 2, Math.PI / 2);
+    c.closePath(); c.fill(); c.stroke(); c.restore();
+  }
   private boxes(s: Fight): void {
     const c = this.ctx;
     c.save(); c.lineWidth = 2;
@@ -178,6 +186,7 @@ export class FightRenderer {
       c.fillStyle = shadow; c.globalAlpha = Math.max(.3, 1 - f.y / 300); c.beginPath(); c.arc(0, 0, 145, 0, Math.PI * 2); c.fill(); c.restore();
     }
     this.fighter(s.worker, true, s.time, s.ending); this.fighter(s.player, false, s.time, s.ending);
+    if (s.phase === 'fighting') { this.guard(s.worker); this.guard(s.player); }
     const glow = c.createRadialGradient(1295, 145, 10, 1295, 145, 160);
     glow.addColorStop(0, '#ffbc6c15'); glow.addColorStop(1, '#ffbc6c00');
     c.fillStyle = glow; c.fillRect(1120, 0, 350, 330);
